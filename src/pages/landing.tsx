@@ -118,6 +118,12 @@ export const LandingPage: FC = () => {
                 desc: '동일 상권 경쟁 병원이 랭크한 키워드 중 우리 병원에 없는 갭 키워드를 자동 추출합니다.',
                 color: 'bg-amber-50 text-amber-600',
               },
+              {
+                icon: 'fa-link',
+                title: '백링크 · 도메인 권위',
+                desc: '어떤 사이트가 살아있는 링크로 권위를 흘려보내는지, 경쟁 치과는 어디서 링크 받는지까지 추적합니다.',
+                color: 'bg-indigo-50 text-indigo-600',
+              },
             ].map((f) => (
               <div class="p-7 rounded-2xl border border-slate-200 bg-white hover:shadow-lg hover:-translate-y-1 transition">
                 <div class={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${f.color}`}>

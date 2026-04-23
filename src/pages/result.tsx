@@ -6,12 +6,22 @@ import { formatNumber } from '../lib/utils'
 import { topSpecialties } from '../lib/medical-keywords'
 
 const FREE_VISIBLE_ROWS = 20
+const FREE_BACKLINK_ROWS = 5
+const FREE_GAP_ROWS = 3
 
 export const ResultPage: FC<{ scan: ScanSummary }> = ({ scan }) => {
   const visibleKeywords = scan.keywords.slice(0, FREE_VISIBLE_ROWS)
   const hiddenKeywords = scan.keywords.slice(FREE_VISIBLE_ROWS)
   const hiddenCount = hiddenKeywords.length
   const specs = topSpecialties(scan.keywords)
+
+  const bls = scan.backlink_summary
+  const bl = scan.backlinks || []
+  const gap = scan.competitor_gap || []
+  const visibleBacklinks = bl.slice(0, FREE_BACKLINK_ROWS)
+  const hiddenBacklinks = bl.slice(FREE_BACKLINK_ROWS)
+  const visibleGap = gap.slice(0, FREE_GAP_ROWS)
+  const hiddenGap = gap.slice(FREE_GAP_ROWS)
 
   // 도넛 비율 계산
   const total = scan.keyword_count || 1
@@ -184,6 +194,241 @@ export const ResultPage: FC<{ scan: ScanSummary }> = ({ scan }) => {
             </table>
           </div>
         </div>
+
+        {/* ========== 백링크 분석 섹션 (Pro 티저) ========== */}
+        {bls && (
+          <section class="mt-10">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl md:text-2xl font-bold text-slate-900">
+                    <i class="fas fa-link text-brand mr-2"></i>
+                    백링크 · 도메인 권위 분석
+                  </h2>
+                  <span class="px-2 py-0.5 rounded-md bg-brand text-white text-xs font-bold">Pro</span>
+                </div>
+                <div class="text-sm text-slate-500 mt-1">
+                  어떤 사이트가 <b class="text-slate-700">{scan.domain}</b>으로 권위를 흘려보내는지, 경쟁 치과는 어디서 링크 받는지
+                </div>
+              </div>
+            </div>
+
+            {/* 1) 도메인 권위 지표 카드 4개 */}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+              <div class="p-5 rounded-2xl bg-gradient-to-br from-brand to-brand-700 text-white">
+                <div class="text-xs text-brand-100">도메인 권위 (DR)</div>
+                <div class="mt-2 flex items-end gap-1">
+                  <span class="text-4xl font-extrabold tracking-tight">{bls.domain_rank}</span>
+                  <span class="text-sm text-brand-100 pb-1">/ 100</span>
+                </div>
+                <div class="mt-3 h-1.5 rounded-full bg-brand-700/50 overflow-hidden">
+                  <div class="h-full bg-white rounded-full" style={`width:${bls.domain_rank}%`}></div>
+                </div>
+                <div class="mt-2 text-xs text-brand-100">구글이 평가하는 신뢰도</div>
+              </div>
+
+              <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                <div class="text-xs text-slate-500">리퍼링 도메인</div>
+                <div class="mt-2 text-3xl font-extrabold text-slate-900">{formatNumber(bls.referring_domains)}</div>
+                <div class="mt-3 text-xs text-slate-500">
+                  <i class="fas fa-globe mr-1 text-brand"></i>
+                  링크 걸어주는 사이트 수
+                </div>
+              </div>
+
+              <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                <div class="text-xs text-slate-500">살아있는 백링크</div>
+                <div class="mt-2 flex items-end gap-2">
+                  <span class="text-3xl font-extrabold text-accent-600">{formatNumber(bls.alive_count)}</span>
+                  {bls.lost_count > 0 && (
+                    <span class="pb-1 text-xs text-warn">
+                      <i class="fas fa-arrow-down"></i> 유실 {bls.lost_count}
+                    </span>
+                  )}
+                </div>
+                <div class="mt-3 text-xs text-slate-500">
+                  <i class="fas fa-heart-pulse mr-1 text-accent"></i>
+                  현재 유효한 링크만 집계
+                </div>
+              </div>
+
+              <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                <div class="text-xs text-slate-500">Dofollow 비율</div>
+                <div class="mt-2 text-3xl font-extrabold text-slate-900">
+                  {Math.round((bls.dofollow_ratio || 0) * 100)}<span class="text-base text-slate-500">%</span>
+                </div>
+                <div class="mt-3 text-xs text-slate-500">
+                  <i class="fas fa-seedling mr-1 text-accent-600"></i>
+                  권위가 실제로 흘러오는 비율
+                </div>
+              </div>
+            </div>
+
+            {/* 2) 살아있는 백링크 리스트 */}
+            <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-5">
+              <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <div class="font-semibold text-slate-900">
+                    <i class="fas fa-signal text-accent mr-2"></i>
+                    살아있는 백링크 TOP {Math.min(bl.length, 20)}
+                  </div>
+                  <div class="text-xs text-slate-500 mt-0.5">도메인 권위 내림차순 · dofollow/nofollow · lost 표시</div>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th class="text-left px-5 py-3">출처 도메인</th>
+                      <th class="text-left px-5 py-3 hidden md:table-cell">앵커 텍스트</th>
+                      <th class="text-center px-5 py-3 w-24">도메인 랭크</th>
+                      <th class="text-center px-5 py-3 w-24">유형</th>
+                      <th class="text-center px-5 py-3 w-20">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {visibleBacklinks.map((b) => (
+                      <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3">
+                          <a href={b.source_url} target="_blank" rel="noopener" class="text-brand hover:underline font-medium">
+                            {b.source_domain}
+                          </a>
+                          <div class="text-xs text-slate-400 truncate max-w-[280px]">{b.source_url}</div>
+                        </td>
+                        <td class="px-5 py-3 hidden md:table-cell text-slate-700 truncate max-w-[200px]" title={b.anchor}>
+                          {b.anchor || <span class="text-slate-400">(없음)</span>}
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                          <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md text-xs font-bold ${
+                            b.domain_rank >= 70 ? 'bg-accent text-white'
+                            : b.domain_rank >= 50 ? 'bg-brand text-white'
+                            : b.domain_rank >= 30 ? 'bg-amber-500 text-white'
+                            : 'bg-slate-200 text-slate-700'
+                          }`}>{b.domain_rank}</span>
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                          {b.is_dofollow ? (
+                            <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-accent-600 text-xs font-semibold">dofollow</span>
+                          ) : (
+                            <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs">nofollow</span>
+                          )}
+                        </td>
+                        <td class="px-5 py-3 text-center">
+                          {b.is_lost ? (
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warn/10 text-warn text-xs font-semibold">
+                              <i class="fas fa-link-slash"></i> lost
+                            </span>
+                          ) : (
+                            <span class="inline-flex items-center gap-1 text-accent-600 text-xs font-semibold">
+                              <i class="fas fa-heart-pulse"></i> alive
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Pro 잠금 블러 행 */}
+                    {hiddenBacklinks.slice(0, 5).map((b) => (
+                      <tr class="relative select-none">
+                        <td class="px-5 py-3 blur-sm">
+                          <div class="font-medium text-slate-400">{b.source_domain}</div>
+                          <div class="text-xs text-slate-300">{b.source_url}</div>
+                        </td>
+                        <td class="px-5 py-3 hidden md:table-cell text-slate-400 blur-sm">{b.anchor}</td>
+                        <td class="px-5 py-3 text-center blur-sm">
+                          <span class="inline-block min-w-[2.5rem] px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">{b.domain_rank}</span>
+                        </td>
+                        <td class="px-5 py-3 text-center blur-sm text-slate-400 text-xs">••••</td>
+                        <td class="px-5 py-3 text-center blur-sm text-slate-400 text-xs">••••</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hiddenBacklinks.length > 0 && (
+                <div class="p-4 text-center text-sm text-slate-500 border-t border-slate-100 bg-slate-50">
+                  <i class="fas fa-lock mr-1"></i>
+                  <b class="text-slate-900">{hiddenBacklinks.length}개</b> 백링크가 더 있습니다 ·
+                  <a href="/pricing" class="text-brand font-semibold hover:underline ml-1">Pro로 전체 보기</a>
+                </div>
+              )}
+            </div>
+
+            {/* 3) 경쟁사 링크 갭 */}
+            {gap.length > 0 && (
+              <div class="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-white overflow-hidden">
+                <div class="p-5 border-b border-amber-100">
+                  <div class="flex items-center gap-2">
+                    <div class="font-semibold text-slate-900">
+                      <i class="fas fa-flag-checkered text-amber-600 mr-2"></i>
+                      경쟁 치과 링크 소스 · 우리 병원이 못 받은 기회
+                    </div>
+                    <span class="px-2 py-0.5 rounded-md bg-amber-500 text-white text-xs font-bold">Pro</span>
+                  </div>
+                  <div class="text-xs text-slate-600 mt-1.5">
+                    경쟁 치과가 받고 있는 링크 중 <b>우리 병원은 아직 못 받은</b> 출처입니다. 제보·기고·보도자료로 공략 가능.
+                  </div>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="bg-white/60 text-slate-600 text-xs uppercase tracking-wider">
+                      <tr>
+                        <th class="text-left px-5 py-3">링크 출처</th>
+                        <th class="text-left px-5 py-3 hidden md:table-cell">링크 받은 경쟁사</th>
+                        <th class="text-left px-5 py-3 hidden md:table-cell">맥락 (앵커)</th>
+                        <th class="text-center px-5 py-3 w-24">출처 권위</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-amber-100">
+                      {visibleGap.map((g) => (
+                        <tr class="hover:bg-amber-50/60">
+                          <td class="px-5 py-3">
+                            <a href={g.source_url} target="_blank" rel="noopener" class="text-brand font-medium hover:underline">
+                              {g.source_domain}
+                            </a>
+                            <div class="text-xs text-slate-400 truncate max-w-[260px]">{g.source_url}</div>
+                          </td>
+                          <td class="px-5 py-3 hidden md:table-cell">
+                            <div class="text-slate-700 font-medium">{g.competitor_domain}</div>
+                            <div class="text-xs text-slate-500">DR {g.competitor_rank}</div>
+                          </td>
+                          <td class="px-5 py-3 hidden md:table-cell text-slate-600 truncate max-w-[200px]" title={g.anchor}>
+                            {g.anchor}
+                          </td>
+                          <td class="px-5 py-3 text-center">
+                            <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md text-xs font-bold ${
+                              g.source_rank >= 70 ? 'bg-accent text-white'
+                              : g.source_rank >= 50 ? 'bg-brand text-white'
+                              : 'bg-amber-500 text-white'
+                            }`}>{g.source_rank}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {hiddenGap.slice(0, 3).map((g) => (
+                        <tr class="relative select-none">
+                          <td class="px-5 py-3 blur-sm">
+                            <div class="font-medium text-slate-400">{g.source_domain}</div>
+                          </td>
+                          <td class="px-5 py-3 hidden md:table-cell text-slate-400 blur-sm">{g.competitor_domain}</td>
+                          <td class="px-5 py-3 hidden md:table-cell text-slate-400 blur-sm">{g.anchor}</td>
+                          <td class="px-5 py-3 text-center blur-sm">
+                            <span class="inline-block min-w-[2.5rem] px-2 py-0.5 rounded-md bg-slate-200 text-xs font-bold text-slate-600">{g.source_rank}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {hiddenGap.length > 0 && (
+                  <div class="p-4 text-center text-sm text-slate-600 bg-amber-50 border-t border-amber-100">
+                    <i class="fas fa-lock mr-1"></i>
+                    <b class="text-slate-900">{hiddenGap.length}개</b>의 경쟁사 링크 기회가 더 있습니다 ·
+                    <a href="/pricing" class="text-brand font-semibold hover:underline ml-1">Pro로 전체 보기</a>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 게이팅 CTA (비회원 + 추가 키워드 존재) */}
         {scan.is_gated && hiddenCount > 0 && (

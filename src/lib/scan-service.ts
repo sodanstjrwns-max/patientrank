@@ -1,8 +1,9 @@
 // 진단 서비스: DataForSEO 호출 + KV 캐시 + D1 저장
 
-import type { Bindings, KeywordRow, ScanSummary } from './types'
+import type { Bindings, KeywordRow, ScanSummary, BacklinkSummary, BacklinkRow, CompetitorLinkGap } from './types'
 import { fetchRankedKeywords, demoRankedKeywords } from './dataforseo'
-import { computeCounters, extractDomain, hashIp, safeJsonParse } from './utils'
+import { analyzeBacklinks } from './backlinks'
+import { computeCounters, extractDomain } from './utils'
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 // 24h
 
@@ -81,7 +82,6 @@ export async function runScan(
 
   // 키워드 스냅샷 (최대 200개까지만 저장 - D1 용량 절약)
   const toSave = keywords.slice(0, 200)
-  // batch insert
   if (toSave.length > 0) {
     const stmts = toSave.map(k =>
       env.DB.prepare(
@@ -89,6 +89,19 @@ export async function runScan(
       ).bind(scanId, k.keyword, k.rank, k.search_volume, k.ranked_url, k.etv)
     )
     await env.DB.batch(stmts)
+  }
+
+  // 백링크 분석 (KV 캐시 사용, 비용 추가 없음)
+  let backlinkSummary: BacklinkSummary | undefined
+  let backlinks: BacklinkRow[] | undefined
+  let competitorGap: CompetitorLinkGap[] | undefined
+  try {
+    const bl = await analyzeBacklinks(env, domain)
+    backlinkSummary = bl.summary
+    backlinks = bl.links
+    competitorGap = bl.gap
+  } catch (e) {
+    console.error('backlinks analyze failed:', e)
   }
 
   return {
@@ -103,7 +116,10 @@ export async function runScan(
     estimated_traffic: counters.estimated_traffic,
     created_at: new Date().toISOString(),
     keywords,
-    is_gated: !opts.userId, // 비회원이면 게이팅
+    is_gated: !opts.userId,
+    backlink_summary: backlinkSummary,
+    backlinks,
+    competitor_gap: competitorGap,
   }
 }
 
@@ -120,10 +136,22 @@ export async function getScanById(env: Bindings, scanId: number): Promise<ScanSu
     `SELECT keyword, rank, search_volume, ranked_url, etv FROM keyword_snapshots WHERE scan_id = ? ORDER BY search_volume DESC, rank ASC`
   ).bind(scanId).all<KeywordRow>()
 
-  // 리드(이메일 게이팅) 여부 확인
   const lead = await env.DB.prepare(`SELECT id FROM leads WHERE scan_id = ? LIMIT 1`).bind(scanId).first<any>()
   const hasLead = !!lead
   const hasUser = !!scan.user_id
+
+  // 백링크도 같이 불러오기 (KV 캐시 히트면 공짜)
+  let backlinkSummary: BacklinkSummary | undefined
+  let backlinks: BacklinkRow[] | undefined
+  let competitorGap: CompetitorLinkGap[] | undefined
+  try {
+    const bl = await analyzeBacklinks(env, scan.url)
+    backlinkSummary = bl.summary
+    backlinks = bl.links
+    competitorGap = bl.gap
+  } catch (e) {
+    console.error('backlinks analyze failed:', e)
+  }
 
   return {
     scanId: Number(scan.id),
@@ -138,5 +166,8 @@ export async function getScanById(env: Bindings, scanId: number): Promise<ScanSu
     created_at: scan.created_at,
     keywords: (kws.results || []) as KeywordRow[],
     is_gated: !hasUser && !hasLead,
+    backlink_summary: backlinkSummary,
+    backlinks,
+    competitor_gap: competitorGap,
   }
 }
