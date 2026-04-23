@@ -1,0 +1,49 @@
+/* Patient Rank - Custom styles */
+
+:root {
+  --brand: #0066FF;
+  --accent: #00D084;
+  --warn: #FF6B6B;
+}
+
+html { scroll-behavior: smooth; }
+
+/* 블러 처리된 잠금 행 */
+.blur-row { pointer-events: none; }
+.blur-row .blur-sm { filter: blur(4px); }
+
+/* details/summary 화살표 회전 */
+details summary { list-style: none; }
+details summary::-webkit-details-marker { display: none; }
+details summary::before {
+  content: '+';
+  display: inline-block;
+  width: 1.2em;
+  color: #0066FF;
+  font-weight: bold;
+}
+details[open] summary::before { content: '−'; }
+
+/* 부드러운 페이드 애니메이션 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.4s ease-out; }
+
+/* 스크롤바 (데스크탑) */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #F8FAFC; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+}
+
+/* 테이블 행 부드러운 호버 */
+#kw-tbody .kw-row { transition: background-color 0.12s ease; }
+
+/* 인쇄 시 블러 제거 (Pro 유저 PDF 내보내기 대비) */
+@media print {
+  .blur-row, .blur-sm { filter: none !important; }
+  header, footer, button, a[href="/#diagnose"] { display: none !important; }
+}

@@ -1,0 +1,13 @@
+# Copy to .dev.vars for local development
+# .dev.vars is git-ignored
+
+DATAFORSEO_LOGIN=your-login-email
+DATAFORSEO_PASSWORD=your-api-key
+RESEND_API_KEY=
+TOSS_CLIENT_KEY=
+TOSS_SECRET_KEY=
+KAKAO_REST_API_KEY=
+KAKAO_TEMPLATE_ID_WEEKLY=
+KAKAO_TEMPLATE_ID_COMPETITOR=
+JWT_SECRET=change-me-in-production
+APP_URL=http://localhost:3000
