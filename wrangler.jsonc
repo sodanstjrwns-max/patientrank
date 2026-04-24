@@ -10,19 +10,16 @@
     {
       "binding": "DB",
       "database_name": "patientrank-production",
-      "database_id": "local-dev-placeholder"
+      "database_id": "6a29a992-5caa-41f8-a7ae-f054dd1ec618"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "CACHE",
-      "id": "local-cache-placeholder"
+      "id": "5b2a79a58f58499b930ffc258cb03227"
     }
   ],
-  "vars": {
-    "APP_URL": "http://localhost:3000",
-    "APP_NAME": "Patient Rank"
-  }
+  "vars": {}
   // Production secrets (set via: npx wrangler pages secret put <KEY>):
   //   DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD
   //   RESEND_API_KEY

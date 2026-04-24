@@ -4,11 +4,16 @@ import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
 import type { Bindings } from './lib/types'
 import api from './routes/api'
+import auth from './routes/auth'
+import admin from './routes/admin'
 import { LandingPage } from './pages/landing'
 import { ResultPage } from './pages/result'
 import { PricingPage } from './pages/pricing'
+import { LoginPage, DashboardPage } from './pages/dashboard'
+import { AdminDashboardPage } from './pages/admin'
 import { Layout, NavBar, Footer } from './pages/layout'
 import { getScanById } from './lib/scan-service'
+import { getUserFromCookie } from './lib/auth'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -17,6 +22,11 @@ app.use('/api/*', cors())
 
 // API
 app.route('/api', api)
+app.route('/api/auth', auth)
+app.route('/api/admin', admin)
+
+// 매직링크 검증은 쿠키를 바로 세팅해야 하므로 페이지 경로로 제공
+app.route('/auth', auth)
 
 // Pages
 app.get('/', (c) => c.html(<LandingPage />))
@@ -46,51 +56,138 @@ app.get('/result/:id', async (c) => {
   return c.html(<ResultPage scan={scan} />)
 })
 
-// Login placeholder
-app.get('/login', (c) =>
-  c.html(
-    <Layout title="로그인 · Patient Rank">
-      <NavBar />
-      <main class="max-w-md mx-auto px-5 py-20">
-        <div class="text-center mb-8">
-          <h1 class="text-3xl font-bold text-slate-900">로그인</h1>
-          <p class="mt-2 text-slate-600">이메일 매직링크로 로그인합니다</p>
-        </div>
-        <form class="space-y-4 p-7 rounded-2xl border border-slate-200 bg-white">
-          <div>
-            <label class="text-sm font-medium text-slate-700">이메일</label>
-            <input type="email" placeholder="doctor@clinic.co.kr"
-              class="mt-1 w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-brand focus:ring-2 focus:ring-brand-50 outline-none" />
-          </div>
-          <button type="button" disabled
-            class="w-full py-3 rounded-lg bg-slate-300 text-white font-semibold cursor-not-allowed">
-            매직링크 받기 (M2에서 활성화)
-          </button>
-          <p class="text-xs text-slate-500 text-center">매직링크 로그인은 M2 마일스톤에서 제공됩니다</p>
-        </form>
-      </main>
-      <Footer />
-    </Layout>,
-  ),
-)
+// 로그인 페이지 (매직링크 입력)
+app.get('/login', async (c) => {
+  const u = await getUserFromCookie(c)
+  if (u) return c.redirect(u.is_admin ? '/admin' : '/dashboard')
+  const error = c.req.query('error') || undefined
+  return c.html(<LoginPage error={error} />)
+})
 
-// Dashboard placeholder
-app.get('/dashboard', (c) =>
-  c.html(
-    <Layout title="대시보드 · Patient Rank">
-      <NavBar loggedIn />
-      <main class="max-w-6xl mx-auto px-5 py-16 text-center">
-        <div class="text-5xl mb-4">🚧</div>
-        <h1 class="text-2xl font-bold text-slate-900">대시보드는 M2에서 공개됩니다</h1>
-        <p class="mt-3 text-slate-600">현재 M1 MVP 단계입니다. URL 진단 기능을 먼저 체험해보세요.</p>
-        <a href="/" class="mt-6 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">
-          랜딩으로
-        </a>
-      </main>
-      <Footer />
-    </Layout>,
-  ),
-)
+// 일반 유저 대시보드
+app.get('/dashboard', async (c) => {
+  const user = await getUserFromCookie(c)
+  if (!user) return c.redirect('/login')
+
+  // 본인 스캔 이력 (user_id 매칭) — 어드민은 전부 /admin에서 보므로 여기는 본인 것만
+  const rows = await c.env.DB.prepare(
+    `SELECT id, url, keyword_count, top10_count, estimated_traffic, created_at
+     FROM scans WHERE user_id = ? ORDER BY created_at DESC LIMIT 30`
+  ).bind(user.id).all<any>()
+
+  const scans = (rows.results || []).map((r: any) => ({
+    id: Number(r.id),
+    url: String(r.url || ''),
+    keyword_count: Number(r.keyword_count || 0),
+    top10_count: Number(r.top10_count || 0),
+    estimated_traffic: Number(r.estimated_traffic || 0),
+    created_at: String(r.created_at),
+  }))
+
+  return c.html(<DashboardPage user={user} scans={scans} />)
+})
+
+// 어드민 대시보드
+app.get('/admin', async (c) => {
+  const user = await getUserFromCookie(c)
+  if (!user) return c.redirect('/login')
+  if (user.is_admin !== 1) {
+    return c.html(
+      <Layout title="접근 권한 없음 · Patient Rank">
+        <NavBar loggedIn />
+        <main class="max-w-2xl mx-auto px-5 py-20 text-center">
+          <div class="text-6xl mb-4">🛡️</div>
+          <h1 class="text-2xl font-bold text-slate-900">어드민 권한이 필요합니다</h1>
+          <p class="mt-2 text-slate-600">이 페이지에 접근할 수 있는 권한이 없습니다.</p>
+          <a href="/dashboard" class="mt-6 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">
+            내 대시보드로
+          </a>
+        </main>
+        <Footer />
+      </Layout>,
+      403,
+    )
+  }
+
+  const db = c.env.DB
+  const [usersRow, scansRow, leadsRow, revenueRow, todayRow, weekRow, paidRow] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) as n FROM users`).first<any>(),
+    db.prepare(`SELECT COUNT(*) as n FROM scans`).first<any>(),
+    db.prepare(`SELECT COUNT(*) as n FROM leads`).first<any>(),
+    db.prepare(`SELECT COALESCE(SUM(amount),0) as n FROM payments WHERE status='paid'`).first<any>(),
+    db.prepare(`SELECT COUNT(*) as n FROM scans WHERE created_at >= datetime('now','-1 day')`).first<any>(),
+    db.prepare(`SELECT COUNT(*) as n FROM scans WHERE created_at >= datetime('now','-7 day')`).first<any>(),
+    db.prepare(`SELECT COUNT(*) as n FROM users WHERE plan != 'free'`).first<any>(),
+  ])
+
+  const stats = {
+    total_users: Number(usersRow?.n || 0),
+    total_scans: Number(scansRow?.n || 0),
+    total_leads: Number(leadsRow?.n || 0),
+    total_revenue: Number(revenueRow?.n || 0),
+    scans_today: Number(todayRow?.n || 0),
+    scans_this_week: Number(weekRow?.n || 0),
+    paid_users: Number(paidRow?.n || 0),
+  }
+
+  const recentScansRes = await db.prepare(
+    `SELECT s.id, s.url, s.keyword_count, s.top10_count, s.estimated_traffic, s.ip_hash, s.created_at,
+            u.email as user_email
+     FROM scans s LEFT JOIN users u ON u.id = s.user_id
+     ORDER BY s.created_at DESC LIMIT 30`
+  ).all<any>()
+
+  const recentScans = (recentScansRes.results || []).map((r: any) => ({
+    id: Number(r.id),
+    url: String(r.url || ''),
+    keyword_count: Number(r.keyword_count || 0),
+    top10_count: Number(r.top10_count || 0),
+    estimated_traffic: Number(r.estimated_traffic || 0),
+    ip_hash: r.ip_hash || null,
+    user_email: r.user_email || null,
+    created_at: String(r.created_at),
+  }))
+
+  const recentLeadsRes = await db.prepare(
+    `SELECT id, email, clinic_name, specialty, doctor_name, scan_id, created_at
+     FROM leads ORDER BY created_at DESC LIMIT 20`
+  ).all<any>()
+
+  const recentLeads = (recentLeadsRes.results || []).map((r: any) => ({
+    id: Number(r.id),
+    email: String(r.email),
+    clinic_name: r.clinic_name || null,
+    specialty: r.specialty || null,
+    doctor_name: r.doctor_name || null,
+    scan_id: Number(r.scan_id),
+    created_at: String(r.created_at),
+  }))
+
+  const usersRes = await db.prepare(
+    `SELECT id, email, name, clinic_name, plan, is_admin, created_at
+     FROM users ORDER BY created_at DESC LIMIT 50`
+  ).all<any>()
+
+  const usersList = (usersRes.results || []).map((r: any) => ({
+    id: Number(r.id),
+    email: String(r.email),
+    name: r.name || null,
+    clinic_name: r.clinic_name || null,
+    plan: String(r.plan || 'free'),
+    is_admin: Number(r.is_admin || 0),
+    created_at: String(r.created_at),
+  }))
+
+  return c.html(
+    <AdminDashboardPage
+      user={user}
+      stats={stats}
+      recentScans={recentScans}
+      recentLeads={recentLeads}
+      users={usersList}
+    />,
+  )
+})
 
 // Blog placeholder
 app.get('/blog', (c) =>
@@ -119,7 +216,7 @@ app.get('/blog', (c) =>
   ),
 )
 
-// Terms / Privacy placeholders
+// Terms / Privacy
 app.get('/terms', (c) =>
   c.html(
     <Layout title="이용약관 · Patient Rank">
