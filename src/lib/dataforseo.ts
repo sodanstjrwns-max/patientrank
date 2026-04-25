@@ -22,11 +22,13 @@ function authHeader(creds: DfsCreds): string {
 
 /**
  * Ranked Keywords 조회 (핵심)
+ * @param maxRank 최대 순위 (기본 500: TOP 500까지, 정밀 모드로는 100까지)
  */
 export async function fetchRankedKeywords(
   creds: DfsCreds,
   target: string,
-  limit = 1000
+  limit = 1000,
+  maxRank = 500,
 ): Promise<{ keywords: KeywordRow[]; raw: any; cost: number }> {
   const body = [{
     target,
@@ -35,7 +37,7 @@ export async function fetchRankedKeywords(
     limit,
     order_by: ['keyword_data.keyword_info.search_volume,desc'],
     filters: [
-      ['ranked_serp_element.serp_item.rank_group', '<=', 100],
+      ['ranked_serp_element.serp_item.rank_group', '<=', maxRank],
     ],
   }]
 
@@ -69,13 +71,260 @@ export async function fetchRankedKeywords(
     const url = String(serp?.url ?? '')
     const etv = Number(serp?.etv ?? 0)
     return { keyword: kw, rank, search_volume: sv, ranked_url: url, etv }
-  }).filter(k => k.keyword && k.rank > 0 && k.rank <= 100)
+  }).filter(k => k.keyword && k.rank > 0 && k.rank <= maxRank)
 
   // 검색량 desc로 정렬 (API도 이미 정렬하지만 안전장치)
   keywords.sort((a, b) => (b.search_volume - a.search_volume) || (a.rank - b.rank))
 
   const cost = Number(json?.cost ?? task?.cost ?? 0)
   return { keywords, raw: json, cost }
+}
+
+/**
+ * Domain Intersection (경쟁사 키워드 갭 분석)
+ * - targets: [우리 도메인, 경쟁사 도메인]
+ * - intersections=false → 경쟁사만 랭크하는 키워드 (= 우리가 놓친 기회)
+ */
+export interface KeywordGapRow {
+  keyword: string
+  search_volume: number
+  cpc: number
+  keyword_difficulty: number
+  // 경쟁사 정보
+  competitor_rank: number
+  competitor_url: string
+  competitor_etv: number
+  // 우리 정보 (대부분 null. intersections=false면 우리는 랭크 안 함)
+  our_rank?: number | null
+  our_url?: string | null
+}
+
+export async function fetchCompetitorKeywordGap(
+  creds: DfsCreds,
+  ourDomain: string,
+  competitorDomain: string,
+  limit = 100,
+): Promise<{ rows: KeywordGapRow[]; cost: number }> {
+  const body = [{
+    target1: competitorDomain,  // 경쟁사
+    target2: ourDomain,          // 우리
+    location_name: 'South Korea',
+    language_name: 'Korean',
+    intersections: false,        // 경쟁사만 랭크하는 키워드 (우리 아님)
+    limit,
+    order_by: ['first_domain_serp_element.serp_item.etv,desc'],
+    filters: [
+      ['first_domain_serp_element.serp_item.rank_group', '<=', 30],
+    ],
+  }]
+
+  const res = await fetch(`${DFS_BASE}/dataforseo_labs/google/domain_intersection/live`, {
+    method: 'POST',
+    headers: {
+      'Authorization': authHeader(creds),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    throw new Error(`DataForSEO intersection HTTP ${res.status}: ${txt.slice(0, 200)}`)
+  }
+
+  const json: any = await res.json()
+  const task = json?.tasks?.[0]
+  if (!task || task.status_code !== 20000) {
+    throw new Error(`DataForSEO intersection task error: ${task?.status_code} ${task?.status_message}`)
+  }
+
+  const items: any[] = task.result?.[0]?.items ?? []
+  const rows: KeywordGapRow[] = items.map(it => {
+    const kd = it?.keyword_data ?? {}
+    const kwInfo = kd?.keyword_info ?? {}
+    const first = it?.first_domain_serp_element?.serp_item ?? {}
+    const second = it?.second_domain_serp_element?.serp_item ?? null
+    return {
+      keyword: String(kd?.keyword ?? ''),
+      search_volume: Number(kwInfo?.search_volume ?? 0),
+      cpc: Number(kwInfo?.cpc ?? 0),
+      keyword_difficulty: Number(kd?.keyword_properties?.keyword_difficulty ?? 0),
+      competitor_rank: Number(first?.rank_group ?? 999),
+      competitor_url: String(first?.url ?? ''),
+      competitor_etv: Number(first?.etv ?? 0),
+      our_rank: second ? Number(second?.rank_group ?? null) : null,
+      our_url: second ? String(second?.url ?? '') : null,
+    }
+  }).filter(r => r.keyword && r.search_volume > 0)
+
+  rows.sort((a, b) => b.search_volume - a.search_volume)
+  const cost = Number(json?.cost ?? task?.cost ?? 0)
+  return { rows, cost }
+}
+
+/**
+ * SERP 실측 (단일 키워드) — Google 한국 실제 검색 결과
+ * 지역×진료 매트릭스 / sitemap 역추적 키워드 순위 검증용
+ * 비용: $0.0006/query (live/regular), $0.002/query (live/advanced)
+ */
+export interface SerpRankResult {
+  keyword: string
+  found: boolean
+  rank: number | null       // rank_group (1~100), null이면 TOP 100 외
+  url: string | null        // 우리 사이트의 랭크 URL
+  search_volume?: number    // 검색량 (옵션, SERP API로는 안 나옴 → 별도 API 필요)
+  total_results: number     // 전체 결과 수
+}
+
+export async function fetchSerpRank(
+  creds: DfsCreds,
+  keyword: string,
+  targetDomain: string,
+  depth = 100,
+): Promise<{ result: SerpRankResult; cost: number }> {
+  const body = [{
+    keyword,
+    location_name: 'South Korea',
+    language_name: 'Korean',
+    depth,
+  }]
+  // 타임아웃 추가: DataForSEO가 느리게 응답하는 키워드에 Promise.all이 영원히 매달리지 않도록
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 20000) // 20초
+  let res: Response
+  try {
+    res = await fetch(`${DFS_BASE}/serp/google/organic/live/regular`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader(creds),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    throw new Error(`DataForSEO SERP HTTP ${res.status}: ${txt.slice(0, 200)}`)
+  }
+  const json: any = await res.json()
+  const task = json?.tasks?.[0]
+  if (!task || task.status_code !== 20000) {
+    throw new Error(`DataForSEO SERP task error: ${task?.status_code} ${task?.status_message}`)
+  }
+  const items: any[] = task.result?.[0]?.items ?? []
+  const totalResults = Number(task.result?.[0]?.se_results_count ?? 0)
+  const normalizedTarget = targetDomain.replace(/^www\./, '').toLowerCase()
+
+  let found: any = null
+  for (const it of items) {
+    const dom = String(it?.domain ?? '').toLowerCase().replace(/^www\./, '')
+    const url = String(it?.url ?? '').toLowerCase()
+    if (dom === normalizedTarget || url.includes(normalizedTarget)) {
+      found = it
+      break
+    }
+  }
+
+  const cost = Number(json?.cost ?? task?.cost ?? 0)
+  return {
+    result: {
+      keyword,
+      found: !!found,
+      rank: found ? Number(found.rank_group ?? found.rank_absolute ?? null) : null,
+      url: found ? String(found.url ?? '') : null,
+      total_results: totalResults,
+    },
+    cost,
+  }
+}
+
+/**
+ * Search Volume 일괄 조회 (최대 1,000 키워드)
+ * 비용: $0.05/1,000 키워드 = $0.00005/키워드
+ */
+export interface SearchVolumeRow {
+  keyword: string
+  search_volume: number
+  cpc: number
+  competition: string | null  // LOW/MEDIUM/HIGH
+}
+
+export async function fetchSearchVolumes(
+  creds: DfsCreds,
+  keywords: string[],
+): Promise<{ rows: SearchVolumeRow[]; cost: number }> {
+  if (!keywords.length) return { rows: [], cost: 0 }
+  const body = [{
+    keywords: keywords.slice(0, 1000),
+    location_name: 'South Korea',
+    language_name: 'Korean',
+  }]
+  const res = await fetch(`${DFS_BASE}/keywords_data/google_ads/search_volume/live`, {
+    method: 'POST',
+    headers: {
+      'Authorization': authHeader(creds),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    throw new Error(`DataForSEO SV HTTP ${res.status}: ${txt.slice(0, 200)}`)
+  }
+  const json: any = await res.json()
+  const task = json?.tasks?.[0]
+  if (!task || task.status_code !== 20000) {
+    throw new Error(`DataForSEO SV task error: ${task?.status_code} ${task?.status_message}`)
+  }
+  const items: any[] = task.result ?? []
+  const rows: SearchVolumeRow[] = items.map(it => ({
+    keyword: String(it?.keyword ?? ''),
+    search_volume: Number(it?.search_volume ?? 0),
+    cpc: Number(it?.cpc ?? 0),
+    competition: it?.competition ?? null,
+  })).filter(r => r.keyword)
+
+  const cost = Number(json?.cost ?? task?.cost ?? 0)
+  return { rows, cost }
+}
+
+/**
+ * 병렬 SERP 체크 (배치)
+ * 동시 실행 제한: 기본 5 (Cloudflare Workers subrequest 한도 고려)
+ */
+export async function batchFetchSerpRanks(
+  creds: DfsCreds,
+  keywords: string[],
+  targetDomain: string,
+  concurrency = 5,
+  depth = 100,
+): Promise<{ results: SerpRankResult[]; totalCost: number; errors: Array<{ keyword: string; error: string }> }> {
+  const results: SerpRankResult[] = []
+  const errors: Array<{ keyword: string; error: string }> = []
+  let totalCost = 0
+
+  const queue = [...keywords]
+
+  async function worker() {
+    while (queue.length) {
+      const kw = queue.shift()
+      if (!kw) break
+      try {
+        const { result, cost } = await fetchSerpRank(creds, kw, targetDomain, depth)
+        results.push(result)
+        totalCost += cost
+      } catch (e: any) {
+        errors.push({ keyword: kw, error: String(e?.message ?? e) })
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, keywords.length) }, () => worker())
+  await Promise.all(workers)
+  return { results, totalCost, errors }
 }
 
 /**

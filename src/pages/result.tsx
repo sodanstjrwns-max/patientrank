@@ -8,20 +8,34 @@ import { topSpecialties } from '../lib/medical-keywords'
 const FREE_VISIBLE_ROWS = 20
 const FREE_BACKLINK_ROWS = 5
 const FREE_GAP_ROWS = 3
+const FREE_KWGAP_ROWS = 5
 
 export const ResultPage: FC<{ scan: ScanSummary }> = ({ scan }) => {
-  const visibleKeywords = scan.keywords.slice(0, FREE_VISIBLE_ROWS)
-  const hiddenKeywords = scan.keywords.slice(FREE_VISIBLE_ROWS)
+  // gated=false면 전체 공개 (로그인·유료·admin·owner·리드제출 완료)
+  const visibleKeywords = scan.is_gated ? scan.keywords.slice(0, FREE_VISIBLE_ROWS) : scan.keywords
+  const hiddenKeywords = scan.is_gated ? scan.keywords.slice(FREE_VISIBLE_ROWS) : []
   const hiddenCount = hiddenKeywords.length
   const specs = topSpecialties(scan.keywords)
 
   const bls = scan.backlink_summary
   const bl = scan.backlinks || []
   const gap = scan.competitor_gap || []
-  const visibleBacklinks = bl.slice(0, FREE_BACKLINK_ROWS)
-  const hiddenBacklinks = bl.slice(FREE_BACKLINK_ROWS)
-  const visibleGap = gap.slice(0, FREE_GAP_ROWS)
-  const hiddenGap = gap.slice(FREE_GAP_ROWS)
+  const visibleBacklinks = scan.is_gated ? bl.slice(0, FREE_BACKLINK_ROWS) : bl
+  const hiddenBacklinks = scan.is_gated ? bl.slice(FREE_BACKLINK_ROWS) : []
+  const visibleGap = scan.is_gated ? gap.slice(0, FREE_GAP_ROWS) : gap
+  const hiddenGap = scan.is_gated ? gap.slice(FREE_GAP_ROWS) : []
+
+  // 키워드 기회 (경쟁사 랭크 + 우리 미랭크)
+  const kwGaps = scan.keyword_gaps || []
+  const visibleKwGaps = scan.is_gated ? kwGaps.slice(0, FREE_KWGAP_ROWS) : kwGaps
+  const hiddenKwGaps = scan.is_gated ? kwGaps.slice(FREE_KWGAP_ROWS) : []
+  const maxRank = scan.max_rank || 100
+
+  // 롱테일 키워드 (옵션 A + B)
+  const longtail = scan.longtail_keywords || []
+  const longtailMeta = scan.longtail_meta
+  const longtailFromSitemap = longtail.filter(k => k.source === 'sitemap')
+  const longtailFromMatrix = longtail.filter(k => k.source === 'matrix')
 
   // 도넛 비율 계산
   const total = scan.keyword_count || 1
@@ -428,6 +442,355 @@ export const ResultPage: FC<{ scan: ScanSummary }> = ({ scan }) => {
               </div>
             )}
           </section>
+        )}
+
+        {/* ========== 키워드 기회 섹션 (경쟁사가 랭크한 우리가 못 잡은 키워드) ========== */}
+        {kwGaps.length > 0 && (
+          <section class="mt-10">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl md:text-2xl font-bold text-slate-900">
+                    <i class="fas fa-bullseye text-warn mr-2"></i>
+                    키워드 기회 · 경쟁사가 잡은 키워드
+                  </h2>
+                  <span class="px-2 py-0.5 rounded-md bg-warn text-white text-xs font-bold">Gap</span>
+                </div>
+                <div class="text-sm text-slate-500 mt-1">
+                  경쟁사 <b class="text-slate-700">{kwGaps[0]?.competitor_domain}</b>는 랭크되어 있지만 <b class="text-slate-700">{scan.domain}</b>는 놓친 키워드 · 검색량 내림차순
+                </div>
+              </div>
+              <div class="text-right hidden md:block">
+                <div class="text-xs text-slate-500">기회 키워드</div>
+                <div class="text-2xl font-extrabold text-warn">{kwGaps.length}<span class="text-base text-slate-400 ml-1">개</span></div>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/40 to-white overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-amber-50 text-amber-900 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th class="text-left px-5 py-3 w-12">#</th>
+                      <th class="text-left px-5 py-3">키워드</th>
+                      <th class="text-right px-5 py-3 w-28">월 검색량</th>
+                      <th class="text-center px-5 py-3 w-24">난이도</th>
+                      <th class="text-center px-5 py-3 w-24">경쟁사 순위</th>
+                      <th class="text-right px-5 py-3 w-24 hidden md:table-cell">월 CPC</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-amber-100">
+                    {visibleKwGaps.map((k, i) => {
+                      const diffColor =
+                        k.keyword_difficulty >= 70 ? 'bg-red-100 text-red-700'
+                        : k.keyword_difficulty >= 40 ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                      const rankColor =
+                        k.competitor_rank <= 3 ? 'bg-accent text-white'
+                        : k.competitor_rank <= 10 ? 'bg-brand text-white'
+                        : 'bg-amber-500 text-white'
+                      return (
+                        <tr class="hover:bg-amber-50/60">
+                          <td class="px-5 py-3 text-slate-400 tabular-nums">{i + 1}</td>
+                          <td class="px-5 py-3 font-medium text-slate-900">
+                            {k.keyword}
+                            {k.our_rank && (
+                              <span class="ml-2 text-xs text-slate-500">(우리 {k.our_rank}위)</span>
+                            )}
+                          </td>
+                          <td class="px-5 py-3 text-right tabular-nums text-slate-900 font-semibold">{formatNumber(k.search_volume)}</td>
+                          <td class="px-5 py-3 text-center">
+                            <span class={`inline-block min-w-[2.5rem] px-2 py-0.5 rounded-md text-xs font-bold ${diffColor}`}>
+                              {k.keyword_difficulty || '-'}
+                            </span>
+                          </td>
+                          <td class="px-5 py-3 text-center">
+                            <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md text-xs font-bold ${rankColor}`}>{k.competitor_rank}위</span>
+                          </td>
+                          <td class="px-5 py-3 text-right tabular-nums text-slate-600 hidden md:table-cell">
+                            {k.cpc > 0 ? `$${k.cpc.toFixed(2)}` : '-'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {hiddenKwGaps.slice(0, 5).map((k, i) => (
+                      <tr class="relative select-none">
+                        <td class="px-5 py-3 text-slate-400 tabular-nums">{FREE_KWGAP_ROWS + i + 1}</td>
+                        <td class="px-5 py-3 font-medium text-slate-400 blur-sm">{k.keyword}</td>
+                        <td class="px-5 py-3 text-right blur-sm text-slate-400">{formatNumber(k.search_volume)}</td>
+                        <td class="px-5 py-3 text-center blur-sm">••</td>
+                        <td class="px-5 py-3 text-center blur-sm">••</td>
+                        <td class="px-5 py-3 text-right blur-sm hidden md:table-cell text-slate-400">••••</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hiddenKwGaps.length > 0 && (
+                <div class="p-4 text-center text-sm text-slate-700 bg-amber-50 border-t border-amber-100">
+                  <i class="fas fa-lock mr-1 text-warn"></i>
+                  <b class="text-slate-900">{hiddenKwGaps.length}개</b>의 키워드 기회가 더 있습니다 ·
+                  <a href="/pricing" class="text-brand font-semibold hover:underline ml-1">Pro로 전체 보기</a>
+                </div>
+              )}
+            </div>
+
+            {/* 인사이트 배너 */}
+            {!scan.is_gated && kwGaps.length > 0 && (
+              <div class="mt-4 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-sm text-amber-900">
+                <i class="fas fa-lightbulb mr-2 text-warn"></i>
+                <b>기회 요약</b> · 경쟁사가 잡은 TOP 30 키워드 중 {kwGaps.length}개를 우리 병원은 놓쳤습니다.
+                월 총 검색량 <b>{formatNumber(kwGaps.reduce((s, k) => s + k.search_volume, 0))}회</b>.
+                상위 5개 키워드로 콘텐츠를 만드는 것부터 시작하세요.
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ========== 롱테일 키워드 발견 (옵션 A + B) ========== */}
+        <section class="mt-10">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-900">
+                  <i class="fas fa-compass text-accent mr-2"></i>
+                  롱테일 키워드 발견
+                </h2>
+                <span class="px-2 py-0.5 rounded-md bg-accent text-white text-xs font-bold">A+B</span>
+                <span class="hidden md:inline-flex px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-xs font-semibold">Google Search Console 연동 예정</span>
+              </div>
+              <div class="text-sm text-slate-500 mt-1">
+                "홍성 라미네이트" 같은 <b class="text-slate-700">지역×진료 롱테일</b>은 DataForSEO 검색량 DB에 없어서 누락됩니다. <br class="hidden md:inline" />
+                sitemap 역추적 + 한국 250개 지역 매트릭스로 실제 Google 순위를 직접 측정합니다.
+              </div>
+            </div>
+            {!scan.is_gated && (
+              <div class="text-right hidden md:block">
+                <div class="text-xs text-slate-500">발견된 롱테일</div>
+                <div class="text-2xl font-extrabold text-accent">{longtail.length}<span class="text-base text-slate-400 ml-1">개</span></div>
+              </div>
+            )}
+          </div>
+
+          {/* 아직 스캔 안 했을 때: CTA 카드 */}
+          {!longtailMeta && !scan.is_gated && (
+            <div class="p-6 rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-emerald-50/40">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                  <div class="font-semibold text-slate-900 mb-1">
+                    <i class="fas fa-radar text-accent mr-2"></i>
+                    롱테일 스캔 실행
+                  </div>
+                  <ul class="text-sm text-slate-600 space-y-1 mt-2">
+                    <li><i class="fas fa-check text-accent mr-2"></i>sitemap.xml 전체 파싱 → URL 슬러그에서 한글 키워드 역추출</li>
+                    <li><i class="fas fa-check text-accent mr-2"></i>한국 주요 30개 지역 × 10개 진료과목 매트릭스 생성</li>
+                    <li><i class="fas fa-check text-accent mr-2"></i>키워드 200개를 실제 Google에서 검색해 순위 측정 (약 1~2분 소요)</li>
+                  </ul>
+                </div>
+                <button
+                  id="longtail-btn"
+                  type="button"
+                  data-scan-id={scan.scanId}
+                  class="px-6 py-3 rounded-lg bg-accent hover:bg-accent-600 text-white text-sm font-semibold whitespace-nowrap shadow">
+                  <i class="fas fa-play mr-2"></i>
+                  롱테일 스캔 시작
+                </button>
+              </div>
+              <div id="longtail-status" class="mt-4 text-sm text-slate-500 hidden"></div>
+            </div>
+          )}
+
+          {/* 게이팅 (비회원) */}
+          {scan.is_gated && (
+            <div class="p-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white text-center">
+              <i class="fas fa-lock text-3xl text-slate-300 mb-3"></i>
+              <div class="font-semibold text-slate-900">이메일 인증 후 롱테일 스캔 사용 가능</div>
+              <div class="text-sm text-slate-500 mt-1">아래 이메일 입력 후 전체 리포트에서 지역 롱테일까지 확인하세요</div>
+            </div>
+          )}
+
+          {/* 스캔 결과 카드 */}
+          {longtailMeta && (
+            <>
+              {/* 메타 요약 */}
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <div class="p-5 rounded-2xl bg-gradient-to-br from-accent to-emerald-600 text-white">
+                  <div class="text-xs text-emerald-100">발견된 롱테일</div>
+                  <div class="mt-2 text-4xl font-extrabold tracking-tight">{longtailMeta.found_count}</div>
+                  <div class="mt-2 text-xs text-emerald-100">TOP 100 내 랭킹</div>
+                </div>
+                <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                  <div class="text-xs text-slate-500">후보 키워드</div>
+                  <div class="mt-2 text-3xl font-extrabold text-slate-900">{longtailMeta.total_candidates}</div>
+                  <div class="mt-2 text-xs text-slate-500">
+                    <i class="fas fa-satellite-dish mr-1 text-brand"></i>
+                    매트릭스 + Sitemap
+                  </div>
+                </div>
+                <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                  <div class="text-xs text-slate-500">Sitemap URL</div>
+                  <div class="mt-2 text-3xl font-extrabold text-slate-900">{longtailMeta.total_urls_crawled}</div>
+                  <div class="mt-2 text-xs text-slate-500 truncate" title={longtailMeta.sitemap_url || ''}>
+                    <i class="fas fa-sitemap mr-1 text-brand"></i>
+                    {longtailMeta.sitemap_url ? '사이트맵 발견' : '사이트맵 없음'}
+                  </div>
+                </div>
+                <div class="p-5 rounded-2xl bg-white border border-slate-200">
+                  <div class="text-xs text-slate-500">API 비용</div>
+                  <div class="mt-2 text-3xl font-extrabold text-slate-900">
+                    ${longtailMeta.total_cost.toFixed(2)}
+                  </div>
+                  <div class="mt-2 text-xs text-slate-500">
+                    <i class="fas fa-coins mr-1 text-amber-500"></i>
+                    DataForSEO SERP
+                  </div>
+                </div>
+              </div>
+
+              {/* 롱테일 리스트 */}
+              {longtail.length > 0 ? (
+                <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                  <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                      <div class="font-semibold text-slate-900">
+                        <i class="fas fa-map-marker-alt text-accent mr-2"></i>
+                        지역×진료 롱테일 랭킹 (실측)
+                      </div>
+                      <div class="text-xs text-slate-500 mt-0.5">
+                        Sitemap {longtailFromSitemap.length}개 · 지역 매트릭스 {longtailFromMatrix.length}개 · 순위 오름차순
+                      </div>
+                    </div>
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                      <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
+                        <tr>
+                          <th class="text-left px-5 py-3 w-12">#</th>
+                          <th class="text-left px-5 py-3">키워드</th>
+                          <th class="text-center px-5 py-3 w-20">순위</th>
+                          <th class="text-right px-5 py-3 w-24 hidden md:table-cell">검색량</th>
+                          <th class="text-center px-5 py-3 w-24 hidden md:table-cell">발견 경로</th>
+                          <th class="text-left px-5 py-3 hidden lg:table-cell">랭크 URL</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        {longtail.map((k, i) => {
+                          const rankBadge =
+                            (k.rank ?? 999) <= 3 ? 'bg-accent text-white'
+                            : (k.rank ?? 999) <= 10 ? 'bg-brand text-white'
+                            : (k.rank ?? 999) <= 30 ? 'bg-amber-500 text-white'
+                            : 'bg-slate-200 text-slate-700'
+                          const sourceBadge =
+                            k.source === 'sitemap'
+                              ? 'bg-emerald-50 text-accent-600'
+                              : 'bg-blue-50 text-brand'
+                          const sourceLabel = k.source === 'sitemap' ? 'Sitemap' : '지역×진료'
+                          return (
+                            <tr class="hover:bg-slate-50">
+                              <td class="px-5 py-3 text-slate-400 tabular-nums">{i + 1}</td>
+                              <td class="px-5 py-3 font-medium text-slate-900">{k.keyword}</td>
+                              <td class="px-5 py-3 text-center">
+                                <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md text-xs font-bold ${rankBadge}`}>
+                                  {k.rank}위
+                                </span>
+                              </td>
+                              <td class="px-5 py-3 text-right tabular-nums text-slate-700 hidden md:table-cell">
+                                {k.search_volume ? formatNumber(k.search_volume) : <span class="text-slate-400 text-xs">미측정</span>}
+                              </td>
+                              <td class="px-5 py-3 text-center hidden md:table-cell">
+                                <span class={`px-2 py-0.5 rounded-md text-xs font-semibold ${sourceBadge}`}>{sourceLabel}</span>
+                              </td>
+                              <td class="px-5 py-3 hidden lg:table-cell">
+                                {k.ranked_url ? (
+                                  <a href={k.ranked_url} target="_blank" rel="noopener" class="text-brand hover:underline text-xs break-all">
+                                    {k.ranked_url.length > 50 ? k.ranked_url.slice(0, 50) + '...' : k.ranked_url}
+                                  </a>
+                                ) : (
+                                  <span class="text-slate-400 text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div class="p-6 rounded-2xl border border-slate-200 bg-white text-center text-slate-500">
+                  <i class="fas fa-search text-3xl text-slate-300 mb-2"></i>
+                  <div class="text-sm">후보 {longtailMeta.total_candidates}개 중 Google TOP 100에 랭킹된 롱테일이 없습니다.</div>
+                  <div class="text-xs mt-1">다른 진료과·지역 조합으로 재시도해보세요</div>
+                </div>
+              )}
+
+              {/* 인사이트 배너 */}
+              {longtail.length > 0 && (
+                <div class="mt-4 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-brand-50 border border-emerald-200 text-sm text-slate-700">
+                  <i class="fas fa-lightbulb mr-2 text-accent"></i>
+                  <b>롱테일 요약</b> · 기존 47개 TOP 100 키워드에 <b class="text-accent">{longtail.length}개의 숨겨진 지역 롱테일</b>이 추가되었습니다.
+                  DataForSEO 공식 DB에 검색량이 잡히지 않지만 실제로 랭킹되어 트래픽을 가져오는 키워드들입니다.
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 옵션 C: Google Search Console 프리미엄 안내 */}
+          {!scan.is_gated && (
+            <div class="mt-5 p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-brand-700 text-white">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 text-xs font-bold">PREMIUM</span>
+                    <span class="text-xs text-slate-300">Agency 플랜 전용</span>
+                  </div>
+                  <div class="font-bold text-lg">
+                    <i class="fab fa-google mr-2 text-amber-300"></i>
+                    Google Search Console 직접 연동
+                  </div>
+                  <div class="text-sm text-slate-200 mt-1.5">
+                    원장님 GSC 계정을 연결하면 <b class="text-amber-300">실제 노출된 모든 검색어 (1,000~10,000개+)</b>를 받아옵니다. <br class="hidden md:inline" />
+                    DataForSEO/샘플링 없이 <b>100% 실제 데이터</b> · 클릭수·노출수·CTR·평균순위 포함
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  class="px-5 py-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-semibold whitespace-nowrap cursor-not-allowed opacity-70">
+                  <i class="fas fa-clock mr-2"></i>
+                  출시 예정
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* TOP 100 → TOP 500 확장 토글 (로그인·유료 유저만) */}
+        {!scan.is_gated && (
+          <div class="mt-8 p-5 rounded-2xl border border-slate-200 bg-white">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <div class="font-semibold text-slate-900">
+                  <i class="fas fa-expand text-brand mr-2"></i>
+                  스캔 범위: 구글 한국 TOP {maxRank}
+                </div>
+                <div class="text-sm text-slate-600 mt-1">
+                  {maxRank === 100
+                    ? 'TOP 100 안에 들어간 키워드만 집계되었습니다. TOP 500으로 확장하면 잠재 키워드(100~500위)까지 볼 수 있습니다.'
+                    : 'TOP 500 확장 모드 · 100위 밖 잠재 키워드까지 전부 집계되었습니다.'}
+                </div>
+              </div>
+              <button
+                id="rescan-wider"
+                type="button"
+                data-domain={scan.domain}
+                data-max-rank={maxRank === 500 ? 100 : 500}
+                class="px-5 py-3 rounded-lg bg-brand hover:bg-brand-600 text-white text-sm font-semibold whitespace-nowrap">
+                <i class="fas fa-rotate mr-2"></i>
+                TOP {maxRank === 500 ? '100 정밀' : '500 확장'}으로 재스캔
+              </button>
+            </div>
+          </div>
         )}
 
         {/* 게이팅 CTA (비회원 + 추가 키워드 존재) */}

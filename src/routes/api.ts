@@ -3,6 +3,9 @@ import { Hono } from 'hono'
 import type { Bindings } from '../lib/types'
 import { extractDomain, getClientIp, hashIp } from '../lib/utils'
 import { runScan, countRecentScansByIp, getScanById } from '../lib/scan-service'
+import { discoverLongTailKeywords } from '../lib/longtail-discovery'
+import { prepareAndStartChunks, processChunk, triggerPrepare } from '../lib/longtail-runner'
+import { verifyChunkToken } from '../lib/longtail-job'
 
 const api = new Hono<{ Bindings: Bindings }>()
 
@@ -15,28 +18,40 @@ api.get('/health', (c) => c.json({ ok: true, service: 'patientrank', ts: new Dat
  * 비회원 진단 실행 (IP 해시 기반 월 3회 제한)
  */
 api.post('/scan', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as { url?: string }
+  const body = await c.req.json().catch(() => ({})) as { url?: string; max_rank?: number }
   const raw = (body?.url || '').trim()
   const domain = extractDomain(raw)
   if (!domain) {
     return c.json({ error: 'INVALID_URL', message: '올바른 URL 형식이 아닙니다' }, 400)
   }
 
+  const maxRank = body?.max_rank === 500 ? 500 : 100
+
   const ip = getClientIp(c.req.raw)
   const ipHash = await hashIp(ip)
 
-  // Free 유저 월 3회 하드리밋
-  const recentCount = await countRecentScansByIp(c.env, ipHash, 30)
-  if (recentCount >= 3) {
-    return c.json({
-      error: 'RATE_LIMIT',
-      message: '월 3회 무료 조회를 모두 사용했습니다. Basic 플랜으로 업그레이드해주세요',
-      count: recentCount,
-    }, 429)
+  // 로그인 유저는 하드리밋 우회 (admin/유료는 더더욱)
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  const isPrivileged = !!(viewer && (viewer.is_admin === 1 || viewer.plan !== 'free'))
+
+  if (!isPrivileged) {
+    const recentCount = await countRecentScansByIp(c.env, ipHash, 30)
+    if (recentCount >= 3) {
+      return c.json({
+        error: 'RATE_LIMIT',
+        message: '월 3회 무료 조회를 모두 사용했습니다. Basic 플랜으로 업그레이드해주세요',
+        count: recentCount,
+      }, 429)
+    }
   }
 
   try {
-    const result = await runScan(c.env, domain, { ipHash })
+    const result = await runScan(c.env, domain, {
+      ipHash,
+      userId: viewer?.id,
+      maxRank,
+    })
     return c.json({ ok: true, scan: result })
   } catch (e: any) {
     console.error('scan error', e)
@@ -54,6 +69,213 @@ api.get('/scan/:id', async (c) => {
   const scan = await getScanById(c.env, id)
   if (!scan) return c.json({ error: 'NOT_FOUND' }, 404)
   return c.json({ ok: true, scan })
+})
+
+/**
+ * 롱테일 스캔 권한 체크 (공통)
+ */
+async function checkLongtailAuth(c: any, scanId: number) {
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  if (!viewer) {
+    return { ok: false as const, status: 401, body: { error: 'AUTH_REQUIRED', message: '롱테일 키워드 발견은 로그인 후 이용 가능합니다' } }
+  }
+  const scan = await c.env.DB.prepare(
+    `SELECT id, url, user_id FROM scans WHERE id = ?`
+  ).bind(scanId).first<any>()
+  if (!scan) return { ok: false as const, status: 404, body: { error: 'NOT_FOUND' } }
+
+  const isPrivileged = viewer.is_admin === 1 || viewer.plan !== 'free'
+  const isOwner = scan.user_id && Number(scan.user_id) === viewer.id
+  if (!isPrivileged && !isOwner) {
+    return { ok: false as const, status: 403, body: { error: 'PLAN_REQUIRED', message: '롱테일 발견은 Basic 플랜 이상 또는 본인 스캔에서만 가능합니다' } }
+  }
+  return { ok: true as const, viewer, scan }
+}
+
+/**
+ * POST /api/scan/:id/longtail/start
+ * 롱테일 스캔 백그라운드 시작 → job_id 즉시 반환 (<1초)
+ * ctx.waitUntil()로 응답 후에도 계속 실행 (Workers는 CPU 30s + Wall Clock 최대 15분)
+ */
+api.post('/scan/:id/longtail/start', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+
+  const auth = await checkLongtailAuth(c, id)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const body = await c.req.json().catch(() => ({})) as { mode?: 'sitemap' | 'matrix' | 'both'; max?: number; force?: boolean }
+  const mode = (body?.mode === 'sitemap' || body?.mode === 'matrix') ? body.mode : 'both'
+  const maxCandidates = Math.max(20, Math.min(300, Number(body?.max) || 200))
+
+  const { createJob, getActiveJobForScan, updateJob, completeJob, failJob } = await import('../lib/longtail-job')
+
+  // 이미 실행 중인 job이 있으면 그것을 반환 (중복 실행 방지)
+  if (!body?.force) {
+    const existing = await getActiveJobForScan(c.env, id)
+    if (existing && (existing.status === 'pending' || existing.status === 'running')) {
+      return c.json({ ok: true, job: existing, reused: true })
+    }
+    // 완료된 job도 3분 이내면 재사용 (캐시처럼)
+    if (existing && existing.status === 'done' && existing.finished_at) {
+      const elapsed = Date.now() - new Date(existing.finished_at).getTime()
+      if (elapsed < 3 * 60 * 1000) {
+        return c.json({ ok: true, job: existing, reused: true })
+      }
+    }
+  }
+
+  // 새 job 생성
+  const job = await createJob(c.env, {
+    scanId: id,
+    domain: auth.scan.url,
+    mode,
+    maxCandidates,
+  })
+
+  // Self-chaining 방식: 준비 단계(sitemap+matrix)도 별도 워커로 분리
+  // start 워커는 job 생성 + prepare 트리거만 하고 즉시 응답 → 진짜 1초 안에 끝
+  // sitemap 파싱이 무거워도 원본 워커 CPU 30s 제한에 영향 없음
+  const appUrl = (c.env.APP_URL || new URL(c.req.url).origin).replace(/\/$/, '')
+  c.executionCtx.waitUntil(
+    triggerPrepare(c.env, job.jobId, appUrl).catch((e: any) => {
+      console.error('trigger prepare failed:', e)
+    })
+  )
+
+  return c.json({ ok: true, job, reused: false })
+})
+
+/**
+ * POST /api/_internal/longtail/prepare?job_id=&token=
+ * 내부 전용 — sitemap 파싱 + 매트릭스 생성 + 첫 청크 트리거
+ * 이 워커는 sitemap 파싱만 담당하고 CPU 30s 안에 끝남 → 이후 청크는 자기들이 알아서 체이닝
+ */
+api.post('/_internal/longtail/prepare', async (c) => {
+  const jobId = c.req.query('job_id') || ''
+  const token = c.req.query('token') || ''
+  if (!jobId || !token) return c.json({ error: 'BAD_REQUEST' }, 400)
+  const valid = await verifyChunkToken(c.env, jobId, 'prepare', token)
+  if (!valid) return c.json({ error: 'BAD_TOKEN' }, 401)
+
+  const { getJob, failJob } = await import('../lib/longtail-job')
+  const job = await getJob(c.env, jobId)
+  if (!job) return c.json({ error: 'NO_JOB' }, 404)
+
+  const appUrl = (c.env.APP_URL || new URL(c.req.url).origin).replace(/\/$/, '')
+  c.executionCtx.waitUntil(
+    prepareAndStartChunks(c.env, job, appUrl).catch(async (e: any) => {
+      console.error('longtail prepare failed:', e)
+      await failJob(c.env, jobId, String(e?.message || e))
+    })
+  )
+  return c.json({ ok: true, accepted: true })
+})
+
+/**
+ * POST /api/_internal/longtail/chunk?job_id=&idx=&token=
+ * 내부 체이닝 전용 — 외부 호출 금지 (HMAC 토큰 검증)
+ * 200 즉시 반환하고 waitUntil로 청크 실행 → 다음 청크는 이 엔드포인트를 재귀적으로 self-fetch
+ */
+api.post('/_internal/longtail/chunk', async (c) => {
+  const jobId = c.req.query('job_id') || ''
+  const idx = Number(c.req.query('idx') || 0)
+  const token = c.req.query('token') || ''
+  if (!jobId || !token || !Number.isFinite(idx) || idx < 0) {
+    return c.json({ error: 'BAD_REQUEST' }, 400)
+  }
+  const valid = await verifyChunkToken(c.env, jobId, idx, token)
+  if (!valid) return c.json({ error: 'BAD_TOKEN' }, 401)
+
+  const appUrl = (c.env.APP_URL || new URL(c.req.url).origin).replace(/\/$/, '')
+  // 청크 실행은 백그라운드 — 즉시 응답해서 호출자(직전 워커)가 3초 타임아웃에 안 걸리도록
+  c.executionCtx.waitUntil(
+    processChunk(c.env, jobId, idx, appUrl).catch((e: any) => {
+      console.error(`chunk ${idx} failed:`, e)
+    })
+  )
+  return c.json({ ok: true, accepted: true, idx })
+})
+
+/**
+ * GET /api/scan/:id/longtail/status?job_id=...
+ * 롱테일 스캔 진행률 조회 (프런트가 2초마다 폴링)
+ * job_id 없으면 scan_id에 활성화된 최근 job 반환
+ */
+api.get('/scan/:id/longtail/status', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+
+  const auth = await checkLongtailAuth(c, id)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const jobId = c.req.query('job_id')
+  const { getJob, getActiveJobForScan } = await import('../lib/longtail-job')
+  const job = jobId ? await getJob(c.env, jobId) : await getActiveJobForScan(c.env, id)
+  if (!job) return c.json({ ok: false, error: 'NO_JOB' }, 404)
+
+  // Watchdog: running인데 updated_at이 60초 이상 정체된 job이면 마지막 청크부터 재개
+  // (체인이 도중에 죽었을 때 프런트 폴링이 자동 복구 트리거 역할)
+  if (job.status === 'running' && job.updated_at) {
+    const staleMs = Date.now() - new Date(job.updated_at).getTime()
+    if (staleMs > 60_000) {
+      const nextIdx = job.chunk_index ?? 0
+      const appUrl = (c.env.APP_URL || new URL(c.req.url).origin).replace(/\/$/, '')
+      const { triggerNextChunk } = await import('../lib/longtail-runner')
+      c.executionCtx.waitUntil(
+        triggerNextChunk(c.env, job.jobId, nextIdx, appUrl).catch(() => {})
+      )
+      ;(job as any).watchdog_resumed = { at_idx: nextIdx, stale_ms: staleMs }
+    }
+  }
+
+  return c.json({ ok: true, job })
+})
+
+/**
+ * POST /api/scan/:id/longtail
+ * 롱테일 키워드 발견 (옵션 A + B)
+ * - 지역×진료 매트릭스 스캔 + sitemap.xml 역추적
+ * - 비용: 키워드 200개 × $0.0006 ≈ $0.12/스캔
+ * - 권한: admin/유료 플랜은 무제한, 무료 유저는 월 1회만
+ */
+api.post('/scan/:id/longtail', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+
+  const scan = await c.env.DB.prepare(
+    `SELECT id, url, user_id FROM scans WHERE id = ?`
+  ).bind(id).first<any>()
+  if (!scan) return c.json({ error: 'NOT_FOUND' }, 404)
+
+  // 권한 체크
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  const isPrivileged = !!(viewer && (viewer.is_admin === 1 || viewer.plan !== 'free'))
+  const isOwner = !!(viewer && scan.user_id && Number(scan.user_id) === viewer.id)
+
+  if (!isPrivileged && !isOwner) {
+    return c.json({
+      error: 'UPGRADE_REQUIRED',
+      message: '롱테일 키워드 발견은 Basic 플랜부터 사용 가능합니다',
+    }, 403)
+  }
+
+  const body = await c.req.json().catch(() => ({})) as { mode?: 'sitemap' | 'matrix' | 'both'; max?: number }
+  const mode = body?.mode || 'both'
+  const maxCandidates = Math.min(Math.max(Number(body?.max) || 200, 30), 500)
+
+  try {
+    const result = await discoverLongTailKeywords(c.env, scan.url, {
+      mode,
+      maxCandidates,
+    })
+    return c.json({ ok: true, ...result })
+  } catch (e: any) {
+    console.error('longtail discovery failed', e)
+    return c.json({ error: 'DISCOVERY_FAILED', message: e?.message || '롱테일 스캔 실패' }, 500)
+  }
 })
 
 /**
@@ -92,7 +314,7 @@ api.post('/leads', async (c) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Patient Rank <report@patientrank.co.kr>',
+          from: 'Patient Rank <report@patientrank.kr>',
           to: [email],
           subject: 'Patient Rank 구글 SEO 진단 리포트',
           html: `

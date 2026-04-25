@@ -1,4 +1,4 @@
-// 인증 라우트: 매직링크 발급·검증, 로그아웃
+// 인증 라우트: 매직링크 발급·검증, Google OAuth, 로그아웃
 import { Hono } from 'hono'
 import type { Bindings } from '../lib/types'
 import {
@@ -9,6 +9,13 @@ import {
   logout,
   getUserFromCookie,
 } from '../lib/auth'
+import {
+  buildGoogleAuthUrl,
+  consumeOAuthState,
+  exchangeCodeForToken,
+  fetchGoogleUserInfo,
+  upsertGoogleUser,
+} from '../lib/google-oauth'
 
 const auth = new Hono<{ Bindings: Bindings }>()
 
@@ -51,6 +58,62 @@ auth.get('/verify', async (c) => {
 
   await createSession(c, user)
   // 어드민이면 /admin, 일반 유저는 /dashboard
+  return c.redirect(user.is_admin ? '/admin' : '/dashboard')
+})
+
+/**
+ * GET /auth/google
+ * Google OAuth 시작 → Google 인증 페이지로 리다이렉트
+ */
+auth.get('/google', async (c) => {
+  if (!c.env.GOOGLE_CLIENT_ID) {
+    return c.redirect('/login?error=google_not_configured')
+  }
+  const redirectTo = c.req.query('next') || undefined
+  try {
+    const url = await buildGoogleAuthUrl(c, redirectTo)
+    return c.redirect(url)
+  } catch (e) {
+    console.error('Google auth URL build failed:', e)
+    return c.redirect('/login?error=google_init_failed')
+  }
+})
+
+/**
+ * GET /auth/google/callback
+ * Google이 code와 state를 붙여 돌려보내는 콜백
+ */
+auth.get('/google/callback', async (c) => {
+  const code = c.req.query('code') || ''
+  const state = c.req.query('state') || ''
+  const error = c.req.query('error')
+
+  if (error) return c.redirect(`/login?error=google_${error}`)
+  if (!code || !state) return c.redirect('/login?error=missing_code')
+
+  // state 검증 (CSRF 방지)
+  const stateInfo = await consumeOAuthState(c, state)
+  if (!stateInfo) return c.redirect('/login?error=invalid_state')
+
+  // code → token 교환
+  const tokens = await exchangeCodeForToken(c, code)
+  if (!tokens?.access_token) return c.redirect('/login?error=token_exchange_failed')
+
+  // 유저 정보 조회
+  const info = await fetchGoogleUserInfo(tokens.access_token)
+  if (!info?.email) return c.redirect('/login?error=userinfo_failed')
+  if (!info.email_verified) return c.redirect('/login?error=email_not_verified')
+
+  // DB upsert
+  const user = await upsertGoogleUser(c, info)
+
+  // 세션 생성
+  await createSession(c, user)
+
+  // redirect_to가 있으면 우선, 없으면 admin/dashboard
+  if (stateInfo.redirect_to && stateInfo.redirect_to.startsWith('/')) {
+    return c.redirect(stateInfo.redirect_to)
+  }
   return c.redirect(user.is_admin ? '/admin' : '/dashboard')
 })
 

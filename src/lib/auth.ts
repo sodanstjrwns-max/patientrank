@@ -50,7 +50,7 @@ export async function sendMagicLinkEmail(env: Bindings, email: string, url: stri
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Patient Rank <login@patientrank.co.kr>',
+        from: 'Patient Rank <login@patientrank.kr>',
         to: [email],
         subject: '[Patient Rank] 로그인 링크',
         html: `

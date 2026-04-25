@@ -11,12 +11,18 @@ const PLAN_LABELS: Record<string, string> = {
 }
 
 export const LoginPage: FC<{ error?: string }> = ({ error }) => {
-  const errMsg =
-    error === 'invalid_token'
-      ? '유효하지 않은 로그인 링크입니다'
-      : error === 'expired_or_used'
-      ? '링크가 만료됐거나 이미 사용된 링크입니다. 다시 요청해주세요'
-      : null
+  const errMap: Record<string, string> = {
+    invalid_token: '유효하지 않은 로그인 링크입니다',
+    expired_or_used: '링크가 만료됐거나 이미 사용된 링크입니다. 다시 요청해주세요',
+    google_not_configured: 'Google 로그인이 아직 설정되지 않았습니다. 이메일 로그인을 이용해주세요',
+    google_init_failed: 'Google 로그인 초기화에 실패했습니다. 다시 시도해주세요',
+    missing_code: 'Google 로그인 응답이 올바르지 않습니다',
+    invalid_state: '보안 검증에 실패했습니다. 다시 로그인해주세요',
+    token_exchange_failed: 'Google 인증 교환에 실패했습니다',
+    userinfo_failed: 'Google 계정 정보를 불러올 수 없습니다',
+    email_not_verified: '이메일이 인증되지 않은 Google 계정입니다',
+  }
+  const errMsg = error ? (errMap[error] || (error.startsWith('google_') ? 'Google 로그인 중 오류가 발생했습니다' : null)) : null
 
   return (
     <Layout title="로그인 · Patient Rank">
@@ -24,7 +30,7 @@ export const LoginPage: FC<{ error?: string }> = ({ error }) => {
       <main class="max-w-md mx-auto px-5 py-20">
         <div class="text-center mb-8">
           <h1 class="text-3xl font-bold text-slate-900">로그인</h1>
-          <p class="mt-2 text-slate-600">비밀번호 없이 이메일 매직링크로 바로 로그인</p>
+          <p class="mt-2 text-slate-600">Google 계정으로 1초 만에 시작하세요</p>
         </div>
 
         {errMsg && (
@@ -32,6 +38,26 @@ export const LoginPage: FC<{ error?: string }> = ({ error }) => {
             <i class="fas fa-circle-exclamation mr-2"></i>{errMsg}
           </div>
         )}
+
+        {/* Google 로그인 (1순위) */}
+        <a
+          href="/auth/google"
+          class="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 shadow-sm transition font-semibold text-slate-800">
+          <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+            <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+          </svg>
+          <span>Google 계정으로 계속하기</span>
+        </a>
+
+        {/* 구분선 */}
+        <div class="flex items-center gap-3 my-6">
+          <div class="flex-1 h-px bg-slate-200"></div>
+          <div class="text-xs text-slate-400 font-medium">또는 이메일로</div>
+          <div class="flex-1 h-px bg-slate-200"></div>
+        </div>
 
         <form id="magicForm" class="space-y-4 p-7 rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div>

@@ -1,9 +1,59 @@
 // 진단 서비스: DataForSEO 호출 + KV 캐시 + D1 저장
 
-import type { Bindings, KeywordRow, ScanSummary, BacklinkSummary, BacklinkRow, CompetitorLinkGap } from './types'
-import { fetchRankedKeywords, demoRankedKeywords } from './dataforseo'
+import type { Bindings, KeywordRow, ScanSummary, BacklinkSummary, BacklinkRow, CompetitorLinkGap, KeywordGap, LongTailKeyword, LongTailMeta } from './types'
+import { fetchRankedKeywords, demoRankedKeywords, fetchCompetitorKeywordGap } from './dataforseo'
 import { analyzeBacklinks } from './backlinks'
 import { computeCounters, extractDomain } from './utils'
+import { discoverLongTailKeywords } from './longtail-discovery'
+
+// 치과/의료 경쟁사 도메인 리스트 (갭 분석용)
+const DEFAULT_COMPETITORS: Record<string, string[]> = {
+  dental: ['yoniplant.com', 'more-dental.com', 'toothlove.co.kr'],
+  default: ['more-dental.com', 'yoniplant.com'],
+}
+
+function pickCompetitor(ourDomain: string): string {
+  // 자기 자신은 제외
+  const list = DEFAULT_COMPETITORS.dental.filter(d => d !== ourDomain)
+  return list[0] || 'more-dental.com'
+}
+
+/**
+ * 경쟁사 키워드 갭 분석 (KV 캐시 24h)
+ */
+export async function analyzeKeywordGaps(
+  env: Bindings,
+  ourDomain: string,
+): Promise<KeywordGap[]> {
+  const competitor = pickCompetitor(ourDomain)
+  const cacheKey = `kwgap:${ourDomain}:${competitor}`
+  const cached = await env.CACHE.get(cacheKey, { type: 'json' }) as KeywordGap[] | null
+  if (cached) return cached
+
+  const login = env.DATAFORSEO_LOGIN
+  const password = env.DATAFORSEO_PASSWORD
+  if (!login || !password) return []
+
+  try {
+    const { rows } = await fetchCompetitorKeywordGap({ login, password }, ourDomain, competitor, 100)
+    const gaps: KeywordGap[] = rows.map(r => ({
+      keyword: r.keyword,
+      search_volume: r.search_volume,
+      keyword_difficulty: r.keyword_difficulty,
+      cpc: r.cpc,
+      competitor_domain: competitor,
+      competitor_rank: r.competitor_rank,
+      competitor_url: r.competitor_url,
+      competitor_etv: r.competitor_etv,
+      our_rank: r.our_rank,
+    }))
+    await env.CACHE.put(cacheKey, JSON.stringify(gaps), { expirationTtl: 60 * 60 * 24 })
+    return gaps
+  } catch (e) {
+    console.error('keyword gap analysis failed:', e)
+    return []
+  }
+}
 
 const CACHE_TTL_SECONDS = 60 * 60 * 24 // 24h
 
@@ -22,16 +72,18 @@ export async function countRecentScansByIp(env: Bindings, ipHash: string, days =
  * - KV 24h 캐시 사용
  * - D1에 scan + keyword_snapshots 저장
  * - DataForSEO 키가 없으면 데모 모드로 동작 (개발/데모용)
+ * - maxRank: 100 (기본, 정밀) / 500 (확장, 잠재 키워드 포함)
  */
 export async function runScan(
   env: Bindings,
   rawInput: string,
-  opts: { ipHash?: string; userId?: number } = {}
+  opts: { ipHash?: string; userId?: number; maxRank?: number; longtail?: boolean } = {}
 ): Promise<ScanSummary> {
   const domain = extractDomain(rawInput)
   if (!domain) throw new Error('올바른 URL 형식이 아닙니다')
 
-  const cacheKey = `scan:${domain}`
+  const maxRank = opts.maxRank === 500 ? 500 : 100
+  const cacheKey = `scan:${domain}:r${maxRank}`
   const cached = await env.CACHE.get(cacheKey, { type: 'json' }) as { keywords: KeywordRow[] } | null
 
   let keywords: KeywordRow[]
@@ -46,14 +98,14 @@ export async function runScan(
     const login = env.DATAFORSEO_LOGIN
     const password = env.DATAFORSEO_PASSWORD
     if (login && password) {
-      const res = await fetchRankedKeywords({ login, password }, domain, 1000)
+      const res = await fetchRankedKeywords({ login, password }, domain, 1000, maxRank)
       keywords = res.keywords
-      rawData = { cost: res.cost, count: keywords.length }
+      rawData = { cost: res.cost, count: keywords.length, maxRank }
     } else {
       // 데모 모드 (API 키 미설정 시)
       const res = demoRankedKeywords(domain)
       keywords = res.keywords
-      rawData = { demo: true, count: keywords.length }
+      rawData = { demo: true, count: keywords.length, maxRank }
     }
     // KV 캐싱
     await env.CACHE.put(cacheKey, JSON.stringify({ keywords }), { expirationTtl: CACHE_TTL_SECONDS })
@@ -91,17 +143,32 @@ export async function runScan(
     await env.DB.batch(stmts)
   }
 
-  // 백링크 분석 (KV 캐시 사용, 비용 추가 없음)
+  // 백링크 분석 + 키워드 갭 (KV 캐시 사용) + 롱테일 발견 (옵션)
   let backlinkSummary: BacklinkSummary | undefined
   let backlinks: BacklinkRow[] | undefined
   let competitorGap: CompetitorLinkGap[] | undefined
+  let keywordGaps: KeywordGap[] = []
+  let longtailKeywords: LongTailKeyword[] | undefined
+  let longtailMeta: LongTailMeta | undefined
   try {
-    const bl = await analyzeBacklinks(env, domain)
+    const tasks: Promise<any>[] = [
+      analyzeBacklinks(env, domain),
+      analyzeKeywordGaps(env, domain),
+    ]
+    if (opts.longtail) {
+      tasks.push(discoverLongTailKeywords(env, domain, { mode: 'both', maxCandidates: 200 }))
+    }
+    const [bl, kwg, lt] = await Promise.all(tasks)
     backlinkSummary = bl.summary
     backlinks = bl.links
     competitorGap = bl.gap
+    keywordGaps = kwg
+    if (lt) {
+      longtailKeywords = lt.keywords
+      longtailMeta = lt.meta
+    }
   } catch (e) {
-    console.error('backlinks analyze failed:', e)
+    console.error('backlinks/gaps/longtail analyze failed:', e)
   }
 
   return {
@@ -120,13 +187,22 @@ export async function runScan(
     backlink_summary: backlinkSummary,
     backlinks,
     competitor_gap: competitorGap,
+    keyword_gaps: keywordGaps,
+    max_rank: maxRank,
+    longtail_keywords: longtailKeywords,
+    longtail_meta: longtailMeta,
   }
 }
 
 /**
  * 저장된 scan 불러오기
+ * @param viewerUser 현재 로그인한 유저 (admin/유료 플랜이면 gated=false)
  */
-export async function getScanById(env: Bindings, scanId: number): Promise<ScanSummary | null> {
+export async function getScanById(
+  env: Bindings,
+  scanId: number,
+  viewerUser?: { id: number; is_admin: number; plan: string } | null,
+): Promise<ScanSummary | null> {
   const scan = await env.DB.prepare(
     `SELECT id, user_id, url, keyword_count, top3_count, top10_count, top30_count, top100_count, estimated_traffic, created_at FROM scans WHERE id = ?`
   ).bind(scanId).first<any>()
@@ -140,17 +216,40 @@ export async function getScanById(env: Bindings, scanId: number): Promise<ScanSu
   const hasLead = !!lead
   const hasUser = !!scan.user_id
 
-  // 백링크도 같이 불러오기 (KV 캐시 히트면 공짜)
+  // 로그인 유저가 admin이거나 유료 플랜이면 항상 전체 공개
+  const isPrivilegedViewer = !!(viewerUser && (viewerUser.is_admin === 1 || viewerUser.plan !== 'free'))
+  // scan 소유자 본인이 보는 경우도 전체 공개
+  const isOwner = !!(viewerUser && scan.user_id && Number(scan.user_id) === viewerUser.id)
+
+  // 백링크 + 키워드 갭 (KV 캐시 히트면 공짜) + 롱테일 (캐시 있으면 가져옴)
   let backlinkSummary: BacklinkSummary | undefined
   let backlinks: BacklinkRow[] | undefined
   let competitorGap: CompetitorLinkGap[] | undefined
+  let keywordGaps: KeywordGap[] = []
+  let longtailKeywords: LongTailKeyword[] | undefined
+  let longtailMeta: LongTailMeta | undefined
   try {
-    const bl = await analyzeBacklinks(env, scan.url)
+    const [bl, kwg] = await Promise.all([
+      analyzeBacklinks(env, scan.url),
+      analyzeKeywordGaps(env, scan.url),
+    ])
     backlinkSummary = bl.summary
     backlinks = bl.links
     competitorGap = bl.gap
+    keywordGaps = kwg
+
+    // 롱테일은 KV 캐시 히트 시만 읽기 (신규 스캔은 POST /api/scan/longtail 트리거)
+    const cacheKey = `longtail:${scan.url}:both:200`
+    const cached = await env.CACHE.get(cacheKey, { type: 'json' }) as {
+      keywords: LongTailKeyword[]
+      meta: LongTailMeta
+    } | null
+    if (cached?.keywords) {
+      longtailKeywords = cached.keywords
+      longtailMeta = cached.meta
+    }
   } catch (e) {
-    console.error('backlinks analyze failed:', e)
+    console.error('backlinks/gaps analyze failed:', e)
   }
 
   return {
@@ -165,9 +264,14 @@ export async function getScanById(env: Bindings, scanId: number): Promise<ScanSu
     estimated_traffic: Number(scan.estimated_traffic || 0),
     created_at: scan.created_at,
     keywords: (kws.results || []) as KeywordRow[],
-    is_gated: !hasUser && !hasLead,
+    // gated = 로그인 안 했고 + scan에 owner 없고 + lead 없음
+    //       + 그런데 privileged 뷰어도 아니고 owner도 아님
+    is_gated: !isPrivilegedViewer && !isOwner && !hasUser && !hasLead,
     backlink_summary: backlinkSummary,
     backlinks,
     competitor_gap: competitorGap,
+    keyword_gaps: keywordGaps,
+    longtail_keywords: longtailKeywords,
+    longtail_meta: longtailMeta,
   }
 }

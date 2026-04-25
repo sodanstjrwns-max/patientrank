@@ -13,6 +13,8 @@ export type Bindings = {
   TOSS_SECRET_KEY?: string
   KAKAO_REST_API_KEY?: string
   JWT_SECRET?: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
 }
 
 export type Plan = 'free' | 'basic' | 'pro' | 'agency'
@@ -43,6 +45,45 @@ export interface ScanSummary {
   backlink_summary?: BacklinkSummary
   backlinks?: BacklinkRow[]
   competitor_gap?: CompetitorLinkGap[]
+  // 경쟁사 키워드 갭 (우리가 놓친 키워드)
+  keyword_gaps?: KeywordGap[]
+  // 스캔 범위 (UI 토글용)
+  max_rank?: number
+  // 롱테일 키워드 발견 (옵션 A+B: sitemap 역추적 + 지역×진료 매트릭스)
+  longtail_keywords?: LongTailKeyword[]
+  longtail_meta?: LongTailMeta
+}
+
+// 롱테일 키워드 (DataForSEO DB에 없지만 실제 랭킹되는 지역 롱테일)
+export interface LongTailKeyword {
+  keyword: string
+  rank: number | null           // null = TOP 100 외
+  ranked_url: string | null
+  search_volume: number | null  // null = DataForSEO Google Ads DB에 없음
+  source: 'sitemap' | 'matrix'  // 발견 경로
+  total_results?: number        // SERP 경쟁 규모
+}
+
+export interface LongTailMeta {
+  sitemap_url: string | null
+  total_urls_crawled: number
+  total_candidates: number
+  scanned_count: number
+  found_count: number           // 실제 TOP 100 안에 랭킹된 개수
+  total_cost: number            // API 비용 ($)
+  mode: 'sitemap' | 'matrix' | 'both'
+}
+
+export interface KeywordGap {
+  keyword: string
+  search_volume: number
+  keyword_difficulty: number
+  cpc: number
+  competitor_domain: string
+  competitor_rank: number
+  competitor_url: string
+  competitor_etv: number
+  our_rank?: number | null
 }
 
 export interface ScanCounters {

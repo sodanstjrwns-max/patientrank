@@ -6,7 +6,7 @@ export const PricingPage: FC = () => {
     { name: 'Free', price: 0, desc: '체험용', features: ['도메인 1개', '월 3회 조회', '상위 20개 키워드 공개'], cta: '무료 시작', href: '/#diagnose' },
     { name: 'Basic', price: 2900, early: 1450, desc: '소규모 1인 병원', features: ['도메인 1개', '월 30회 조회', '전체 키워드 공개', '주간 카톡 알림', 'PDF 리포트'], cta: '시작하기', href: '/login' },
     { name: 'Pro', price: 4900, early: 2450, desc: '성장 중인 병원', features: ['도메인 3개', '월 50회 조회', '전체 키워드 공개', '주간 카톡 알림', '경쟁사 갭 분석', '백링크 분석', '7일 무료체험'], cta: '시작하기', href: '/login', popular: true },
-    { name: 'Agency', price: 15900, early: 7950, desc: '마케팅 에이전시', features: ['도메인 20개', '월 150회 조회', 'Pro 전체 기능', 'API 접근', '화이트라벨', '우선 지원'], cta: '문의하기', href: 'mailto:hello@patientrank.co.kr' },
+    { name: 'Agency', price: 15900, early: 7950, desc: '마케팅 에이전시', features: ['도메인 20개', '월 150회 조회', 'Pro 전체 기능', 'API 접근', '화이트라벨', '우선 지원'], cta: '문의하기', href: 'mailto:hello@patientrank.kr' },
   ]
 
   return (

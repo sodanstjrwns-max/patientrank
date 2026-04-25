@@ -54,7 +54,6 @@
     if (!v) return '';
     v = v.trim().toLowerCase();
     if (!v) return '';
-    // 간단한 도메인 형식 검증
     const stripped = v.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
     if (!stripped.includes('.')) return '';
     return stripped;
@@ -87,7 +86,6 @@
         }
         return false;
       }
-      // 결과 페이지로 이동
       location.href = '/result/' + data.scan.scanId;
     } catch (err) {
       if (stopLoading) stopLoading();
@@ -96,4 +94,112 @@
     }
     return false;
   };
+
+  // ====== 예시 도메인 클릭 → 폼 자동 채움 ======
+  function setupExampleDomains() {
+    document.querySelectorAll('.example-domain').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const d = btn.getAttribute('data-domain') || '';
+        if (input) {
+          input.value = d;
+          input.focus();
+          input.classList.add('animate-fade-in');
+          setTimeout(() => input.classList.remove('animate-fade-in'), 400);
+        }
+      });
+    });
+  }
+
+  // ====== 카운트업 애니메이션 ======
+  function animateCounter(el, target, duration) {
+    const start = performance.now();
+    const isFloat = !Number.isInteger(target);
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const cur = target * eased;
+      el.textContent = isFloat ? cur.toFixed(1) : Math.round(cur).toLocaleString();
+      if (t < 1) requestAnimationFrame(tick);
+      else el.textContent = isFloat ? target.toFixed(1) : target.toLocaleString();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function setupCounters() {
+    const counters = document.querySelectorAll('.counter');
+    if (!counters.length) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      counters.forEach((el) => {
+        const t = parseFloat(el.getAttribute('data-target') || '0');
+        animateCounter(el, t, 1400);
+      });
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        if (el.dataset.done) return;
+        el.dataset.done = '1';
+        const t = parseFloat(el.getAttribute('data-target') || '0');
+        animateCounter(el, t, 1400);
+        io.unobserve(el);
+      });
+    }, { threshold: 0.4 });
+    counters.forEach((el) => io.observe(el));
+  }
+
+  // ====== 스크롤 reveal ======
+  function setupReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      els.forEach((el) => el.classList.add('in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    els.forEach((el) => io.observe(el));
+  }
+
+  // ====== 성장 그래프 막대 ======
+  function setupBars() {
+    document.querySelectorAll('.reveal-bar').forEach((el) => {
+      el.style.transformOrigin = 'bottom';
+      el.style.transform = 'scaleY(0)';
+      el.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+    });
+    if (typeof IntersectionObserver === 'undefined') {
+      document.querySelectorAll('.reveal-bar').forEach((el) => { el.style.transform = 'scaleY(1)'; });
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.style.transform = 'scaleY(1)';
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('.reveal-bar').forEach((el) => io.observe(el));
+  }
+
+  // ====== 초기화 ======
+  function init() {
+    setupExampleDomains();
+    setupCounters();
+    setupReveal();
+    setupBars();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

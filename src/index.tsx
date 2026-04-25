@@ -35,7 +35,8 @@ app.get('/pricing', (c) => c.html(<PricingPage />))
 app.get('/result/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (!Number.isFinite(id) || id <= 0) return c.notFound()
-  const scan = await getScanById(c.env, id)
+  const viewer = await getUserFromCookie(c)
+  const scan = await getScanById(c.env, id, viewer)
   if (!scan) {
     return c.html(
       <Layout title="결과를 찾을 수 없습니다 · Patient Rank">
