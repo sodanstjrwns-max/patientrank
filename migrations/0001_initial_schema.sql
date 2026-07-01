@@ -102,15 +102,31 @@ CREATE INDEX IF NOT EXISTS idx_weekly_alerts_domain_id ON weekly_alerts(domain_i
 CREATE INDEX IF NOT EXISTS idx_weekly_alerts_week_of ON weekly_alerts(week_of);
 
 -- 결제 이력
+-- NOTE: 0006과 동일한 정의로 통일 (fresh install 시 스키마 충돌 방지)
+--       프로덕션은 이미 이 스키마 적용 완료 (2026-07-01 확인)
 CREATE TABLE IF NOT EXISTS payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER REFERENCES users(id),
-  plan TEXT,
-  amount INTEGER,
+  user_id INTEGER NOT NULL,
+  subscription_id INTEGER,
   toss_payment_key TEXT,
-  status TEXT,
-  paid_at DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  toss_order_id TEXT NOT NULL UNIQUE,
+  toss_transaction_key TEXT,
+  amount_krw INTEGER NOT NULL,
+  vat_krw INTEGER,
+  status TEXT NOT NULL DEFAULT 'pending',
+  method TEXT,
+  card_company TEXT,
+  card_number_masked TEXT,
+  reason TEXT,
+  refunded_at DATETIME,
+  refund_amount_krw INTEGER,
+  refund_reason TEXT,
+  receipt_url TEXT,
+  failure_code TEXT,
+  failure_message TEXT,
+  raw_response TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  paid_at DATETIME
 );
 
 CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);

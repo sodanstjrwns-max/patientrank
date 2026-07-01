@@ -238,7 +238,8 @@ export async function updatePaymentSuccess(
     .bind(
       resp.paymentKey,
       (resp as any).transactionKey || null,
-      resp.status,
+      // 토스 응답은 'DONE' — 내부 집계는 'paid'로 통일 (원본은 raw_response에 보존)
+      resp.status === 'DONE' ? 'paid' : resp.status.toLowerCase(),
       resp.method,
       resp.card?.company || null,
       resp.card?.number || null,
@@ -353,6 +354,17 @@ export async function upsertSubscription(
 // ─────────────────────────────────────────────────────────────────
 // 8. 쿠폰 검증 + 할인 적용
 // ─────────────────────────────────────────────────────────────────
+/**
+ * 쿠폰 사용 처리 — 결제 성공 시에만 호출 (current_uses 증가)
+ */
+export async function consumeCoupon(env: Bindings, code: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE coupons SET current_uses = COALESCE(current_uses, 0) + 1 WHERE code = ? AND is_active = 1`,
+  )
+    .bind(code.toUpperCase())
+    .run()
+}
+
 export async function validateCoupon(
   env: Bindings,
   code: string,

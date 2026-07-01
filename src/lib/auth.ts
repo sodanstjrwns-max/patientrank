@@ -10,6 +10,16 @@ import { hashIp, getClientIp } from './utils'
 const SESSION_TTL_DAYS = 30
 const COOKIE_NAME = 'pr_session'
 
+/**
+ * JWT 시크릿 필수화 — 미설정 시 공개된 폴백 문자열로 서명되는 보안 사고 방지
+ * (로컬은 .dev.vars, 프로덕션은 wrangler pages secret으로 주입)
+ */
+function requireJwtSecret(env: Bindings): string {
+  const secret = env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다 (.dev.vars 또는 pages secret 확인)')
+  return secret
+}
+
 export interface AuthUser {
   id: number
   email: string
@@ -25,7 +35,7 @@ export interface AuthUser {
  * 세션 생성 + 쿠키 세팅
  */
 export async function createSession(c: Context<{ Bindings: Bindings }>, user: AuthUser): Promise<string> {
-  const secret = c.env.JWT_SECRET || 'dev-only-change-in-production'
+  const secret = requireJwtSecret(c.env)
   const jti = uuidv4()
   const ipHash = await hashIp(getClientIp(c.req.raw))
   const ua = c.req.header('user-agent') || ''
@@ -57,7 +67,7 @@ export async function createSession(c: Context<{ Bindings: Bindings }>, user: Au
 export async function getUserFromCookie(c: Context<{ Bindings: Bindings }>): Promise<AuthUser | null> {
   const token = getCookie(c, COOKIE_NAME)
   if (!token) return null
-  const secret = c.env.JWT_SECRET || 'dev-only-change-in-production'
+  const secret = requireJwtSecret(c.env)
   const payload = await verifyJwt(token, secret)
   if (!payload) return null
 
@@ -94,7 +104,7 @@ export async function getUserFromCookie(c: Context<{ Bindings: Bindings }>): Pro
 export async function logout(c: Context<{ Bindings: Bindings }>): Promise<void> {
   const token = getCookie(c, COOKIE_NAME)
   if (token) {
-    const secret = c.env.JWT_SECRET || 'dev-only-change-in-production'
+    const secret = requireJwtSecret(c.env)
     const payload = await verifyJwt(token, secret)
     if (payload?.jti) {
       await c.env.DB.prepare(`UPDATE sessions SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?`)

@@ -79,6 +79,30 @@ api.get('/scan/:id', async (c) => {
 })
 
 /**
+ * GET /api/scan/:id/prescriptions
+ * 콘텐츠 처방전 — 우선순위 스코어링된 콘텐츠 제작 기회 리스트
+ * 비회원: 상위 3건 / 회원(유료·본인): 전체
+ */
+api.get('/scan/:id/prescriptions', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+  const scan = await getScanById(c.env, id)
+  if (!scan) return c.json({ error: 'NOT_FOUND' }, 404)
+
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  const isPaid = !!(viewer && (viewer.is_admin === 1 || viewer.plan !== 'free'))
+
+  const { generatePrescriptions } = await import('../lib/content-prescription')
+  const report = await generatePrescriptions(c.env, scan, { limit: isPaid ? 20 : 10, userId: viewer?.id })
+
+  if (!isPaid) {
+    report.prescriptions = report.prescriptions.slice(0, 3)
+  }
+  return c.json({ ok: true, report, gated: !isPaid })
+})
+
+/**
  * 롱테일 스캔 권한 체크 (공통)
  */
 async function checkLongtailAuth(c: any, scanId: number) {

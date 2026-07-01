@@ -2,8 +2,77 @@
 import type { FC } from 'hono/jsx'
 import { Layout, NavBar, Footer } from './layout'
 import type { ScanSummary, WeeklyDelta, AiActionGuide } from '../lib/types'
+import type { PrescriptionReport, Prescription } from '../lib/content-prescription'
 import { formatNumber } from '../lib/utils'
 import { topSpecialties } from '../lib/medical-keywords'
+
+// 처방 유형별 뱃지 메타
+const RX_META: Record<string, { label: string; icon: string; badge: string }> = {
+  quick_win:   { label: '퀵윈',        icon: 'fa-bolt',            badge: 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' },
+  ctr_fix:     { label: '클릭 회수',   icon: 'fa-arrow-pointer',   badge: 'bg-amber-500/15 border-amber-400/30 text-amber-300' },
+  gap_attack:  { label: '갭 공략',     icon: 'fa-crosshairs',      badge: 'bg-rose-500/15 border-rose-400/30 text-rose-300' },
+  new_content: { label: '신규 콘텐츠', icon: 'fa-pen-nib',         badge: 'bg-brand/15 border-brand/30 text-brand-200' },
+  defend:      { label: 'TOP3 승격',   icon: 'fa-shield-halved',   badge: 'bg-violet-500/15 border-violet-400/30 text-violet-300' },
+}
+
+// 콘텐츠 처방전 카드 1장
+const RxCard: FC<{ rx: Prescription; idx: number; locked?: boolean }> = ({ rx, idx, locked }) => {
+  const meta = RX_META[rx.type] || RX_META.new_content
+  return (
+    <article class={`relative rounded-2xl border border-white/10 bg-slate-950/50 p-5 ${locked ? 'select-none' : ''}`}>
+      {locked && (
+        <div class="absolute inset-0 z-10 rounded-2xl backdrop-blur-md bg-slate-950/40 flex items-center justify-center">
+          <a href="/pricing" class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-bold hover:bg-brand-600 transition">
+            <i class="fas fa-lock mr-1.5"></i>Basic 플랜으로 전체 처방 보기
+          </a>
+        </div>
+      )}
+      <div class="flex items-start gap-3">
+        <div class="flex-shrink-0 w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-extrabold text-white/80 text-sm">
+          {idx + 1}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2 mb-1.5">
+            <span class={`text-[10px] px-2 py-0.5 rounded-md border font-bold ${meta.badge}`}>
+              <i class={`fas ${meta.icon} mr-1 text-[9px]`}></i>{meta.label}
+            </span>
+            {rx.search_volume != null && rx.search_volume > 0 && (
+              <span class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 font-mono">
+                검색량 {formatNumber(rx.search_volume)}/월
+              </span>
+            )}
+            {rx.current_rank != null && (
+              <span class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 font-mono">
+                현재 {rx.current_rank}위
+              </span>
+            )}
+            {rx.impressions != null && (
+              <span class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 font-mono">
+                노출 {formatNumber(rx.impressions)}회
+              </span>
+            )}
+          </div>
+          <h4 class="font-extrabold text-white text-base leading-snug break-keep">{rx.keyword}</h4>
+          <p class="mt-1 text-sm text-white/70">{rx.headline}</p>
+          <div class="mt-3 space-y-2 text-[13px]">
+            <div class="flex gap-2">
+              <i class="fas fa-clipboard-check text-brand-300 mt-0.5 flex-shrink-0"></i>
+              <span class="text-white/80"><b class="text-white/95">할 일:</b> {rx.action}</span>
+            </div>
+            <div class="flex gap-2">
+              <i class="fas fa-chart-line text-emerald-300 mt-0.5 flex-shrink-0"></i>
+              <span class="text-white/70"><b class="text-white/90">기대 효과:</b> {rx.expected}</span>
+            </div>
+            <div class="flex gap-2">
+              <i class="fas fa-lightbulb text-amber-300 mt-0.5 flex-shrink-0"></i>
+              <span class="text-white/70"><b class="text-white/90">추천 주제:</b> {rx.content_idea}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+}
 
 const FREE_VISIBLE_ROWS = 20
 const FREE_BACKLINK_ROWS = 5
@@ -94,7 +163,8 @@ export const ResultPage: FC<{
   viewer?: { id: number; email: string; is_admin: 0 | 1; plan: string } | null
   weeklyDelta?: WeeklyDelta | null
   actionGuide?: AiActionGuide | null
-}> = ({ scan, viewer, weeklyDelta, actionGuide }) => {
+  prescriptions?: PrescriptionReport | null
+}> = ({ scan, viewer, weeklyDelta, actionGuide, prescriptions }) => {
   // ADMIN 또는 Pro/Agency 플랜은 GSC 풀 액세스
   const isGscUnlocked = !!(viewer && (viewer.is_admin === 1 || viewer.plan === 'pro' || viewer.plan === 'agency'))
   const visibleKeywords = scan.is_gated ? scan.keywords.slice(0, FREE_VISIBLE_ROWS) : scan.keywords
@@ -279,6 +349,66 @@ export const ResultPage: FC<{
               </div>
             </div>
           </div>
+
+          {/* ==================== 이번 달 콘텐츠 처방전 ==================== */}
+          {prescriptions && prescriptions.prescriptions.length > 0 && (() => {
+            const isPaid = !!(viewer && (viewer.is_admin === 1 || viewer.plan !== 'free'))
+            const FREE_RX = 3
+            const rxList = prescriptions.prescriptions
+            const s = prescriptions.summary
+            return (
+              <section id="prescription" class="bento-card rounded-3xl p-7 mb-10 relative overflow-hidden group">
+                <div class="absolute -top-16 -left-16 w-64 h-64 rounded-full opacity-25 group-hover:opacity-40 transition-opacity"
+                     style="background: radial-gradient(circle, #F59E0B 0%, transparent 70%); filter: blur(40px);"></div>
+                <div class="relative">
+                  <header class="flex flex-wrap items-center justify-between gap-3 mb-1.5">
+                    <h3 class="text-xl md:text-2xl font-extrabold text-white">
+                      <i class="fas fa-file-prescription text-amber-300 mr-2.5"></i>
+                      이번 달 콘텐츠 처방전
+                    </h3>
+                    <span class="text-[11px] px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/25 text-amber-200 font-bold">
+                      기회 {prescriptions.total_opportunities}건 발견
+                    </span>
+                  </header>
+                  <p class="text-sm text-white/60 mb-5">
+                    진단 데이터를 기반으로 <b class="text-white/85">우선순위 순</b>으로 정리한 실행 계획입니다.
+                    위에서부터 하나씩 처리하시면 됩니다.
+                  </p>
+
+                  {/* 유형별 요약 칩 */}
+                  <div class="flex flex-wrap gap-2 mb-6">
+                    {[
+                      { k: 'quick_win', n: s.quick_win },
+                      { k: 'ctr_fix', n: s.ctr_fix },
+                      { k: 'gap_attack', n: s.gap_attack },
+                      { k: 'new_content', n: s.new_content },
+                      { k: 'defend', n: s.defend },
+                    ].filter((x) => x.n > 0).map((x) => {
+                      const m = RX_META[x.k]
+                      return (
+                        <span class={`text-[11px] px-2.5 py-1 rounded-lg border font-bold ${m.badge}`}>
+                          <i class={`fas ${m.icon} mr-1`}></i>{m.label} {x.n}
+                        </span>
+                      )
+                    })}
+                  </div>
+
+                  <div class="grid md:grid-cols-2 gap-4">
+                    {rxList.map((rx, i) => (
+                      <RxCard rx={rx} idx={i} locked={!isPaid && i >= FREE_RX} />
+                    ))}
+                  </div>
+
+                  {!isPaid && rxList.length > FREE_RX && (
+                    <div class="mt-5 text-center text-sm text-white/50">
+                      무료 플랜은 상위 {FREE_RX}건까지 공개됩니다 ·{' '}
+                      <a href="/pricing" class="text-brand-300 font-bold hover:underline">전체 처방전 + 주간 추적 시작하기 →</a>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )
+          })()}
 
           {/* ==================== 이번 주 변화 + AI 액션 가이드 (Pro 전용) ==================== */}
           {(weeklyDelta || actionGuide) && (

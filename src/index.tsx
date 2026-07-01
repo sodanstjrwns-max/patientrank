@@ -20,6 +20,7 @@ import { getScanById } from './lib/scan-service'
 import { getUserFromCookie } from './lib/auth'
 import { getWeeklyDelta } from './lib/snapshot-service'
 import { getCachedActionGuide, generateActionGuide, saveActionGuide } from './lib/ai-action-guide'
+import { generatePrescriptions } from './lib/content-prescription'
 import { runWeeklyRescanCron } from './lib/cron-handler'
 import { runDailyBillingCron } from './lib/billing-cron'
 import {
@@ -31,9 +32,10 @@ import {
 import { sendBetaInvite } from './lib/kakao-notify'
 import {
   validateCoupon,
+  consumeCoupon,
   generateOrderId,
   savePayment,
-  confirmPayment,
+  chargeBillingKey,
   issueBillingKey,
   updatePaymentSuccess,
   updatePaymentFailure,
@@ -75,7 +77,14 @@ app.get('/result/:id', async (c) => {
   // Day 1-E: 시계열 비교 데이터 + AI 액션 가이드 (Pro+/Admin만)
   let weeklyDelta: any = null
   let actionGuide: any = null
+  let prescriptions: any = null
   if (scan) {
+    // 콘텐츠 처방전 — 모든 방문자에게 생성 (무료는 상위 3건만 공개, 나머지 블러)
+    try {
+      prescriptions = await generatePrescriptions(c.env, scan, { limit: 10, userId: viewer?.id })
+    } catch (e) {
+      console.error('prescription generation failed:', e)
+    }
     try {
       weeklyDelta = await getWeeklyDelta(c.env, scan.domain)
     } catch (e) {
@@ -129,7 +138,7 @@ app.get('/result/:id', async (c) => {
       404,
     )
   }
-  return c.html(<ResultPage scan={scan} viewer={viewer} weeklyDelta={weeklyDelta} actionGuide={actionGuide} />)
+  return c.html(<ResultPage scan={scan} viewer={viewer} weeklyDelta={weeklyDelta} actionGuide={actionGuide} prescriptions={prescriptions} />)
 })
 
 // 로그인 페이지 (Google OAuth 진입)
@@ -577,7 +586,23 @@ app.get('/checkout', async (c) => {
     }
   }
 
-  const tossClientKey = (c.env as any).TOSS_CLIENT_KEY || 'test_ck_docs_Ovk5rk1EwkEbP0W43n07xlzm'
+  // TOSS_CLIENT_KEY 미설정 시 결제 진입 차단 (테스트 키 폴백은 실결제 사고 위험)
+  const tossClientKey = (c.env as any).TOSS_CLIENT_KEY
+  if (!tossClientKey) {
+    return c.html(
+      <Layout title="결제 준비 중 · Patient Rank">
+        <NavBar loggedIn />
+        <main class="max-w-xl mx-auto px-5 py-24 text-center">
+          <div class="text-6xl mb-4">🛠️</div>
+          <h1 class="text-2xl font-bold text-slate-900">결제 시스템 준비 중입니다</h1>
+          <p class="mt-3 text-slate-600">잠시 후 다시 시도해주세요. 급하신 경우 카카오 채널로 문의 부탁드립니다.</p>
+          <a href="/pricing" class="mt-8 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">가격 안내로</a>
+        </main>
+        <Footer />
+      </Layout>,
+      503,
+    )
+  }
 
   return c.html(
     <CheckoutPage
@@ -662,7 +687,22 @@ app.get('/payment/success', async (c) => {
       }
     }
 
-    // 3) 구독 활성화
+    // 3) 첫 결제 즉시 청구 (0원 쿠폰이면 청구 생략 — 카드 등록만)
+    //    이전 버그: 빌링키 발급 후 실청구 없이 구독 활성화 → 첫 달 무료가 돼버림
+    let firstCharge: Awaited<ReturnType<typeof chargeBillingKey>> | null = null
+    if (finalPrice > 0) {
+      firstCharge = await chargeBillingKey(c.env, {
+        billingKey: billing.billingKey,
+        customerKey,
+        amount: finalPrice,
+        orderId,
+        orderName: `Patient Rank ${planRaw.toUpperCase()} 월 구독`,
+        customerEmail: user.email,
+        customerName: (user as any).name || undefined,
+      })
+    }
+
+    // 4) 구독 활성화
     const subId = await upsertSubscription(
       c.env,
       user.id,
@@ -676,14 +716,41 @@ app.get('/payment/success', async (c) => {
       billing.card.number,
     )
 
-    // 4) 결제 정보 업데이트 (paymentKey는 빌링키 발급 단계에선 없음 — 첫 청구 후 갱신)
-    await c.env.DB.prepare(
-      `UPDATE payments SET subscription_id = ?, status = 'DONE',
-        method = 'CARD', card_company = ?, card_number_masked = ?, paid_at = CURRENT_TIMESTAMP
-       WHERE toss_order_id = ?`
-    ).bind(subId, billing.card.company, billing.card.number, orderId).run()
+    // 5) 결제 정보 업데이트 (status는 통일된 'paid' 사용)
+    if (firstCharge) {
+      await c.env.DB.prepare(
+        `UPDATE payments SET subscription_id = ?, status = 'paid',
+          toss_payment_key = ?, method = 'CARD',
+          card_company = ?, card_number_masked = ?,
+          receipt_url = ?, paid_at = CURRENT_TIMESTAMP
+         WHERE toss_order_id = ?`
+      ).bind(
+        subId,
+        firstCharge.paymentKey || null,
+        billing.card.company,
+        billing.card.number,
+        firstCharge.receipt?.url || null,
+        orderId,
+      ).run()
+    } else {
+      // 100% 쿠폰: 청구 없이 결제 레코드는 0원 paid 처리
+      await c.env.DB.prepare(
+        `UPDATE payments SET subscription_id = ?, status = 'paid',
+          method = 'CARD', card_company = ?, card_number_masked = ?, paid_at = CURRENT_TIMESTAMP
+         WHERE toss_order_id = ?`
+      ).bind(subId, billing.card.company, billing.card.number, orderId).run()
+    }
 
-    // 5) 유저 플랜 업그레이드
+    // 6) 쿠폰 사용 카운트 증가 (결제 성공 시에만)
+    if (couponCode && discountRate > 0) {
+      try {
+        await consumeCoupon(c.env, couponCode)
+      } catch (e) {
+        console.error('coupon consume failed:', e)
+      }
+    }
+
+    // 7) 유저 플랜 업그레이드
     await c.env.DB.prepare(`UPDATE users SET plan = ? WHERE id = ?`)
       .bind(planRaw, user.id).run()
 
@@ -718,59 +785,60 @@ app.notFound((c) =>
   ),
 )
 
-// 전역 에러 핸들러 — 핸들러 내부에서 throw된 모든 에러를 잡아 친절한 에러 페이지로
-// (디버그 모드: 에러 메시지/스택을 화면에 직접 노출 — 운영 안정화 후 제거 예정)
-app.onError((err, c) => {
+// 전역 에러 핸들러 — 상세 정보는 로그에만 기록, 사용자에겐 request_id만 노출
+// (스택/메시지는 어드민 세션에서만 표시)
+app.onError(async (err, c) => {
   const reqId = (c.req.header('cf-ray') || '').split('-')[0] || 'unknown'
   const errMsg = err?.message || String(err) || 'unknown error'
   const errStack = err?.stack || ''
-  const errName = err?.name || 'Error'
   console.error(`[onError] ${c.req.method} ${c.req.path} reqId=${reqId} :: ${errMsg}`)
   if (errStack) console.error(errStack)
 
+  // 어드민이면 디버그 정보 노출 (운영자 본인의 트러블슈팅 편의)
+  let isAdmin = false
+  try {
+    const viewer = await getUserFromCookie(c)
+    isAdmin = !!(viewer && viewer.is_admin === 1)
+  } catch { /* 인증 자체가 죽었을 수 있으므로 무시 */ }
+
   const path = c.req.path
-  // JSON API는 JSON으로 응답
   if (path.startsWith('/api/')) {
-    return c.json({ ok: false, error: 'internal_error', message: errMsg, stack: errStack, request_id: reqId }, 500)
+    return c.json(
+      isAdmin
+        ? { ok: false, error: 'internal_error', message: errMsg, stack: errStack, request_id: reqId }
+        : { ok: false, error: 'internal_error', message: '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', request_id: reqId },
+      500,
+    )
   }
 
-  // 페이지는 HTML 에러 화면 (디버그 정보 포함)
   return c.html(
     <Layout title="오류가 발생했습니다 · Patient Rank">
       <NavBar />
-      <main class="max-w-3xl mx-auto px-5 py-16">
-        <div class="text-center mb-8">
-          <div class="text-7xl mb-4">⚠️</div>
-          <h1 class="text-3xl font-bold text-slate-900">일시적인 오류가 발생했습니다</h1>
-          <p class="mt-3 text-slate-600">아래 디버그 정보를 캡쳐해서 운영자에게 전달해주세요.</p>
+      <main class="max-w-2xl mx-auto px-5 py-20 text-center">
+        <div class="text-7xl mb-4">⚠️</div>
+        <h1 class="text-3xl font-bold text-slate-900">일시적인 오류가 발생했습니다</h1>
+        <p class="mt-3 text-slate-600">잠시 후 다시 시도해주세요. 문제가 계속되면 아래 코드를 알려주세요.</p>
+        <div class="mt-6 inline-block px-4 py-2 rounded-lg bg-slate-100 border border-slate-200">
+          <span class="text-xs text-slate-500 mr-2">문의 코드</span>
+          <span class="font-mono text-sm font-semibold text-slate-800">{reqId}</span>
         </div>
 
-        <div class="space-y-4 mb-8">
-          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <div class="text-xs font-semibold text-slate-500 mb-1">요청 경로</div>
-            <div class="font-mono text-sm text-slate-900 break-all">{c.req.method} {c.req.path}</div>
+        {isAdmin && (
+          <div class="mt-8 text-left space-y-3">
+            <div class="p-4 rounded-xl bg-red-50 border border-red-200">
+              <div class="text-xs font-semibold text-red-600 mb-1">에러 메시지 (어드민 전용)</div>
+              <div class="font-mono text-sm text-red-900 whitespace-pre-wrap break-all">{errMsg}</div>
+            </div>
+            {errStack && (
+              <details class="p-4 rounded-xl bg-slate-900 text-slate-100 border border-slate-700">
+                <summary class="cursor-pointer text-xs font-semibold text-slate-300">스택 트레이스</summary>
+                <pre class="mt-3 text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-all">{errStack}</pre>
+              </details>
+            )}
           </div>
-          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <div class="text-xs font-semibold text-slate-500 mb-1">request_id</div>
-            <div class="font-mono text-sm text-slate-900">{reqId}</div>
-          </div>
-          <div class="p-4 rounded-xl bg-red-50 border border-red-200">
-            <div class="text-xs font-semibold text-red-600 mb-1">에러 타입</div>
-            <div class="font-mono text-sm text-red-900">{errName}</div>
-          </div>
-          <div class="p-4 rounded-xl bg-red-50 border border-red-200">
-            <div class="text-xs font-semibold text-red-600 mb-1">에러 메시지</div>
-            <div class="font-mono text-sm text-red-900 whitespace-pre-wrap break-all">{errMsg}</div>
-          </div>
-          {errStack && (
-            <details class="p-4 rounded-xl bg-slate-900 text-slate-100 border border-slate-700">
-              <summary class="cursor-pointer text-xs font-semibold text-slate-300 mb-2">스택 트레이스 (클릭하여 펼치기)</summary>
-              <pre class="mt-3 text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-all">{errStack}</pre>
-            </details>
-          )}
-        </div>
+        )}
 
-        <div class="flex gap-3 justify-center">
+        <div class="mt-10 flex gap-3 justify-center">
           <a href="/" class="px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">홈으로</a>
           <a href="/login" class="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">로그인</a>
         </div>
