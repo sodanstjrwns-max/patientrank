@@ -26,7 +26,7 @@ admin.get('/stats', async (c) => {
     db.prepare(`SELECT COUNT(*) as n FROM users`).first<any>(),
     db.prepare(`SELECT COUNT(*) as n FROM scans`).first<any>(),
     db.prepare(`SELECT COUNT(*) as n FROM leads`).first<any>(),
-    db.prepare(`SELECT COALESCE(SUM(amount),0) as n FROM payments WHERE status='paid'`).first<any>(),
+    db.prepare(`SELECT COALESCE(SUM(amount_krw),0) as n FROM payments WHERE status='paid'`).first<any>(),
     db.prepare(`SELECT COUNT(*) as n FROM scans WHERE created_at >= datetime('now','-1 day')`).first<any>(),
     db.prepare(`SELECT COUNT(*) as n FROM scans WHERE created_at >= datetime('now','-7 day')`).first<any>(),
     db.prepare(`SELECT COUNT(*) as n FROM users WHERE plan != 'free'`).first<any>(),

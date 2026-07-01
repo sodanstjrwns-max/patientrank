@@ -74,7 +74,10 @@ export const AdminDashboardPage: FC<AdminDashboardProps> = ({
               <i class="fas fa-shield-halved text-accent mr-2"></i>Patient Rank 운영 대시보드
             </h1>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
+            <a href="/admin/beta" class="px-4 py-2 rounded-lg bg-brand text-white font-bold hover:bg-brand-700 text-sm">
+              <i class="fas fa-paper-plane mr-1"></i>베타 인비테이션
+            </a>
             <a href="/dashboard" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-sm">
               <i class="fas fa-user mr-1"></i>일반 대시보드
             </a>

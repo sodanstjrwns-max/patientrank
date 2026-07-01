@@ -7,122 +7,307 @@ export const LandingPage: FC = () => {
     <Layout>
       <NavBar />
       <main class="overflow-x-clip">
-        {/* ============== HERO ============== */}
-        <section id="hero" class="relative bg-noise">
+        {/* ============== HERO (v6 DARK PREMIUM) ============== */}
+        <section id="hero" class="relative hero-dark overflow-hidden pt-24 pb-32 md:pt-32 md:pb-40">
           <a id="diagnose" class="absolute -top-20" aria-hidden="true"></a>
-          <div class="absolute inset-0 -z-20 bg-mesh-hero"></div>
-          <div class="absolute inset-x-0 top-0 h-[600px] -z-10 bg-grid bg-grid-mask opacity-50"></div>
-          <div class="absolute -top-32 -right-40 w-[500px] h-[500px] rounded-full bg-brand-100 blur-3xl opacity-50 -z-10"></div>
-          <div class="absolute top-40 -left-32 w-[400px] h-[400px] rounded-full bg-emerald-100 blur-3xl opacity-50 -z-10"></div>
 
-          <div class="relative max-w-6xl mx-auto px-5 pt-14 pb-20 md:pt-24 md:pb-28">
-            <div class="flex justify-center mb-7">
-              <a
-                href="https://patientfunnel.kr"
-                target="_blank"
-                rel="noopener"
-                class="inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-white/80 backdrop-blur border border-ink-200 shadow-card text-xs md:text-sm text-ink-700 hover:shadow-card-hover transition group"
-              >
-                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-brand to-accent text-white font-semibold text-[11px]">
+          {/* 별 그리드 (배경 깊이감) */}
+          <div class="absolute inset-0 stars-grid pointer-events-none"></div>
+
+          {/* Aurora 글로우 — 마우스 따라 살짝 움직임 */}
+          <div id="aurora-1" class="absolute top-[-200px] right-[-100px] w-[700px] h-[700px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0, 102, 255, 0.4) 0%, transparent 60%); filter: blur(80px);"></div>
+          <div id="aurora-2" class="absolute top-[400px] left-[-200px] w-[600px] h-[600px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0, 208, 132, 0.3) 0%, transparent 60%); filter: blur(80px);"></div>
+          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] opacity-20 animate-aurora-spin pointer-events-none" style="background: conic-gradient(from 0deg, transparent, #0066FF, transparent, #00D084, transparent);"></div>
+
+          {/* 떨어지는 광선 */}
+          <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="beam" style="left: 12%; animation-delay: 0s; background: linear-gradient(to bottom, transparent, rgba(122, 166, 255, 0.5), transparent);"></div>
+            <div class="beam" style="left: 28%; animation-delay: 1.2s; background: linear-gradient(to bottom, transparent, rgba(0, 208, 132, 0.4), transparent);"></div>
+            <div class="beam" style="left: 47%; animation-delay: 2.5s; background: linear-gradient(to bottom, transparent, rgba(122, 166, 255, 0.5), transparent);"></div>
+            <div class="beam" style="left: 71%; animation-delay: 0.8s; background: linear-gradient(to bottom, transparent, rgba(0, 208, 132, 0.4), transparent);"></div>
+            <div class="beam" style="left: 89%; animation-delay: 3.4s; background: linear-gradient(to bottom, transparent, rgba(122, 166, 255, 0.5), transparent);"></div>
+          </div>
+
+          <div class="relative max-w-7xl mx-auto px-5">
+            {/* 검증 뱃지 */}
+            <div class="flex justify-center mb-10 reveal">
+              <a href="https://patientfunnel.kr" target="_blank" rel="noopener" class="group relative inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full glass-dark text-xs md:text-sm hover:scale-[1.02] transition">
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-brand to-accent text-white font-semibold text-[11px] shadow-md">
                   <i class="fas fa-shield-halved text-[10px]"></i>
                   검증
                 </span>
-                <span><b class="text-ink-900">페이션트퍼널 ⨯ 서울비디치과</b> 공식 도구</span>
+                <span class="text-white/80"><b class="text-white">페이션트퍼널 ⨯ 서울비디치과</b> 공식 도구</span>
+                <span class="inline-flex items-center gap-1 ml-1 text-[10px] text-white/50">
+                  <span class="relative flex w-1.5 h-1.5">
+                    <span class="absolute inline-flex w-full h-full rounded-full bg-accent opacity-75 animate-ping"></span>
+                    <span class="relative inline-flex w-1.5 h-1.5 rounded-full bg-accent"></span>
+                  </span>
+                  LIVE
+                </span>
                 <i class="fas fa-arrow-right-long text-[10px] opacity-60 group-hover:translate-x-0.5 transition"></i>
               </a>
             </div>
 
-            <div class="text-center max-w-4xl mx-auto">
-              <h1 class="text-display-md md:text-display-lg lg:text-display-xl text-ink-900">
-                네이버 광고비, <br class="md:hidden" />
-                <span class="text-gradient-mesh">구글 SEO</span>로 자르세요.
+            {/* 거대 H1 — 중앙 정렬 임팩트 */}
+            <div class="text-center max-w-5xl mx-auto reveal">
+              <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur">
+                <span class="relative flex w-2 h-2">
+                  <span class="absolute inline-flex w-full h-full rounded-full bg-rose-400 opacity-75 animate-ping"></span>
+                  <span class="relative inline-flex w-2 h-2 rounded-full bg-rose-500"></span>
+                </span>
+                <span class="text-xs font-semibold text-white/70">
+                  지금 이 순간 <span id="live-search-count" class="text-rose-400 tabular-nums font-extrabold">2,847</span>명이 "<span id="live-search-kw" class="text-gradient-aurora">강남 임플란트</span>"
+                </span>
+              </div>
+
+              <h1 class="text-display-md md:text-display-xl lg:text-display-2xl tracking-[-0.05em] leading-[0.95]">
+                <span class="block text-white">광고 없이</span>
+                <span class="block">
+                  <span class="text-gradient-aurora">구글에서</span>
+                </span>
+                <span class="block text-white">1위가 되는 법.</span>
               </h1>
-              <p class="mt-7 text-lg md:text-2xl text-ink-600 leading-relaxed font-medium">
-                URL 하나 넣으면 끝.<br class="md:hidden" />
-                우리 병원이 <b class="text-ink-900">구글에서 어떤 키워드로 몇 위</b>인지,
-                경쟁 병원은 <b class="text-ink-900">어디로 환자를 데려가는지</b> 10초 안에 보여드립니다.
+
+              <p class="mt-8 text-base md:text-lg lg:text-xl text-white/60 leading-relaxed max-w-2xl mx-auto font-medium">
+                URL 하나만 넣으세요. <span class="text-white">구글 한국</span>에서 우리 병원이 어떤 키워드로 몇 위인지,<br class="hidden md:block" />
+                경쟁사가 어디로 환자를 데려가는지 <b class="text-white">10초 안에</b> 보여드립니다.
               </p>
+            </div>
 
-              <form
-                id="scan-form"
-                class="mt-10 max-w-2xl mx-auto reveal"
-                onsubmit="return window.__submitScan && window.__submitScan(event)"
-              >
-                <div class="flex flex-col md:flex-row gap-3 p-2 bg-white rounded-2xl shadow-card-hover ring-1 ring-ink-200 focus-within:ring-2 focus-within:ring-brand transition">
-                  <div class="flex-1 flex items-center gap-3 px-4">
-                    <i class="fas fa-globe text-ink-400"></i>
-                    <input
-                      id="scan-url"
-                      type="text"
-                      autocomplete="off"
-                      autocapitalize="off"
-                      spellcheck={false}
-                      placeholder="example-hospital.com"
-                      class="w-full py-4 text-base md:text-lg outline-none bg-transparent placeholder:text-ink-400"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    class="py-4 px-7 rounded-xl bg-gradient-to-br from-brand to-brand-700 hover:from-brand-600 hover:to-brand-800 text-white font-semibold text-base md:text-lg shadow-glow-brand transition whitespace-nowrap"
-                  >
-                    <i class="fas fa-bolt mr-2"></i>
-                    무료로 10초 진단
-                  </button>
+            {/* 글로우 인풋 박스 (다크 글래스) */}
+            <form id="scan-form" class="mt-12 max-w-2xl mx-auto reveal" onsubmit="return window.__submitScan && window.__submitScan(event)">
+              <div class="input-dark-glow rounded-2xl p-2 flex flex-col md:flex-row gap-2">
+                <div class="flex-1 flex items-center gap-3 px-4">
+                  <i class="fas fa-globe text-white/40"></i>
+                  <input id="scan-url" type="text" autocomplete="off" autocapitalize="off" spellcheck={false} placeholder="example-hospital.com" class="w-full py-3.5 text-base md:text-lg outline-none bg-transparent text-white placeholder:text-white/30 font-medium" />
+                  <i id="input-check-icon" class="fas fa-circle-check text-accent text-lg opacity-0 scale-50 transition-all duration-300"></i>
                 </div>
-                <div id="scan-error" class="hidden mt-3 text-sm text-warn"></div>
-                <p class="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs md:text-sm text-ink-500">
-                  <span class="inline-flex items-center gap-1.5"><i class="fas fa-credit-card text-ink-400"></i> 카드 등록 불필요</span>
-                  <span class="inline-flex items-center gap-1.5"><i class="fas fa-envelope-open text-ink-400"></i> 이메일 미입력 OK</span>
-                  <span class="inline-flex items-center gap-1.5"><i class="fas fa-stopwatch text-ink-400"></i> 평균 응답 9.4초</span>
-                </p>
-              </form>
-
-              <div class="mt-7 flex flex-wrap items-center justify-center gap-2 text-xs">
-                <span class="text-ink-500 mr-1">예시 사이트로 바로 보기:</span>
+                <button type="submit" class="magnetic group relative py-3.5 px-7 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 hover:shadow-glow-brand-lg text-white font-semibold text-base md:text-lg shadow-glow-brand transition-all duration-300 whitespace-nowrap overflow-hidden">
+                  <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
+                  <i class="fas fa-bolt mr-2 relative group-hover:scale-110 transition"></i>
+                  <span class="relative">10초 진단</span>
+                </button>
+              </div>
+              <div id="scan-error" class="hidden mt-3 text-sm text-rose-400 text-center"></div>
+              <p class="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs md:text-sm text-white/50">
+                <span class="inline-flex items-center gap-1.5"><i class="fas fa-credit-card text-white/30"></i> 카드 등록 불필요</span>
+                <span class="inline-flex items-center gap-1.5"><i class="fas fa-user-shield text-white/30"></i> 회원가입 X</span>
+                <span class="inline-flex items-center gap-1.5"><i class="fas fa-stopwatch text-white/30"></i> 평균 9.4초</span>
+              </p>
+              <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
+                <span class="text-white/40 mr-1">예시:</span>
                 {['bdbddc.com', 'snubidc.com'].map((d) => (
-                  <button
-                    type="button"
-                    class="example-domain px-3 py-1.5 rounded-full border border-ink-200 bg-white/70 hover:bg-white hover:border-brand-300 hover:text-brand transition"
-                    data-domain={d}
-                  >
+                  <button type="button" class="example-domain group px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur hover:bg-white/[0.08] hover:border-white/20 hover:text-white text-white/70 transition" data-domain={d}>
+                    <i class="fas fa-link text-[9px] mr-1.5 opacity-50 group-hover:opacity-100"></i>
                     {d}
                   </button>
                 ))}
               </div>
+            </form>
+
+            {/* ============ Bento Grid 6칸 (Apple/Linear 스타일) ============ */}
+            <div class="mt-20 md:mt-28 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 reveal">
+              {/* [1] Live SERP simulation - 큰 카드 */}
+              <div class="bento-card md:col-span-2 lg:col-span-3 lg:row-span-2 rounded-3xl p-6 md:p-7 group">
+                <div class="flex items-center justify-between mb-5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span class="ml-2 text-[11px] font-mono text-white/50">google.co.kr/search?q=<span id="typing-keyword" class="text-accent typing-cursor">홍성 라미네이트</span></span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-accent/15 text-accent font-bold">
+                    <span class="w-1 h-1 rounded-full bg-accent animate-pulse"></span>LIVE
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-4 gap-2 mb-5">
+                  <div class="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/30">
+                    <div class="text-[10px] text-accent/80 font-medium">발견</div>
+                    <div class="mt-0.5 text-2xl md:text-3xl font-extrabold text-white tabular-nums">45</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <div class="text-[10px] text-white/50 font-medium">후보</div>
+                    <div class="mt-0.5 text-2xl md:text-3xl font-extrabold text-white tabular-nums">200</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <div class="text-[10px] text-white/50 font-medium">URL</div>
+                    <div class="mt-0.5 text-2xl md:text-3xl font-extrabold text-white tabular-nums">706</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                    <div class="text-[10px] text-white/50 font-medium">비용</div>
+                    <div class="mt-0.5 text-2xl md:text-3xl font-extrabold text-white tabular-nums">$2.5</div>
+                  </div>
+                </div>
+
+                <div class="rounded-xl bg-black/20 border border-white/5 overflow-hidden">
+                  <div class="px-4 py-2 bg-white/[0.02] text-[10px] font-semibold text-white/50 flex justify-between items-center border-b border-white/5">
+                    <span><i class="fas fa-map-marker-alt text-accent mr-1.5"></i>지역×진료 롱테일 TOP</span>
+                    <span class="text-white/30 font-mono">실측 SERP</span>
+                  </div>
+                  <ul class="divide-y divide-white/5">
+                    {[
+                      { rank: 1, kw: '홍성 라미네이트', tone: 'accent' },
+                      { rank: 1, kw: '당진 인비절라인', tone: 'accent' },
+                      { rank: 1, kw: '예산 인비절라인', tone: 'accent' },
+                      { rank: 3, kw: '연기 치과', tone: 'brand' },
+                      { rank: 4, kw: '아산 라미네이트', tone: 'brand' },
+                    ].map((k) => (
+                      <li class="serp-card flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/[0.02] transition">
+                        <span class={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold tabular-nums ${k.tone === 'accent' ? 'bg-gradient-to-br from-accent to-emerald-600 text-white shadow-md shadow-accent/40' : 'bg-brand/20 text-brand-200 border border-brand/30'}`}>
+                          {k.rank}
+                        </span>
+                        <span class="flex-1 font-semibold text-white/90 truncate">{k.kw}</span>
+                        <i class="fas fa-arrow-up-right-from-square text-white/20 text-xs"></i>
+                      </li>
+                    ))}
+                  </ul>
+                  <div class="px-4 py-2 bg-white/[0.02] text-center text-[10px] text-white/50">
+                    외 <b class="text-white">40개</b> 발견 · 모두 광고비 0원 자산
+                  </div>
+                </div>
+              </div>
+
+              {/* [2] 3D 데이터 큐브 */}
+              <div class="bento-card lg:col-span-3 rounded-3xl p-6 relative overflow-hidden">
+                <div class="absolute inset-0 stars-grid opacity-50 pointer-events-none"></div>
+                <div class="relative">
+                  <div class="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1">
+                    <i class="fas fa-cube text-accent mr-1.5"></i>실시간 데이터 메시
+                  </div>
+                  <div class="text-xl md:text-2xl font-extrabold text-white mb-1">전국 250개 시·군 매트릭스</div>
+                  <div class="text-xs text-white/50">DataForSEO · GSC · Sitemap 3중 데이터</div>
+                </div>
+                <div class="my-6 flex justify-center" style="perspective: 1000px;">
+                  <div class="data-cube">
+                    <div class="cube-face front">홍성 #1</div>
+                    <div class="cube-face back">당진 #1</div>
+                    <div class="cube-face right">예산 #1</div>
+                    <div class="cube-face left">연기 #3</div>
+                    <div class="cube-face top">아산 #4</div>
+                    <div class="cube-face bottom">서산 #1</div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div><div class="text-lg font-extrabold text-white tabular-nums">250</div><div class="text-[10px] text-white/40">시·군</div></div>
+                  <div><div class="text-lg font-extrabold text-white tabular-nums">10</div><div class="text-[10px] text-white/40">진료과</div></div>
+                  <div><div class="text-lg font-extrabold text-accent tabular-nums">2,500</div><div class="text-[10px] text-white/40">매트릭스</div></div>
+                </div>
+              </div>
+
+              {/* [3] 라이브 활동 피드 */}
+              <div class="bento-card lg:col-span-2 rounded-3xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                    <i class="fas fa-tower-broadcast text-accent mr-1.5"></i>실시간 진단 피드
+                  </div>
+                  <span class="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>LIVE
+                  </span>
+                </div>
+                <ul id="live-activity-feed" class="space-y-2.5 text-sm">
+                  <li class="live-feed-row flex items-center gap-2.5 text-white/70" style="animation-delay: 0.1s;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0"></span>
+                    <span class="text-xs"><b class="text-white">강남 ⨯ 치과</b> · 47개 키워드 발견</span>
+                  </li>
+                  <li class="live-feed-row flex items-center gap-2.5 text-white/70" style="animation-delay: 0.4s;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-300 shrink-0"></span>
+                    <span class="text-xs"><b class="text-white">홍대 ⨯ 한의원</b> · 23개 롱테일</span>
+                  </li>
+                  <li class="live-feed-row flex items-center gap-2.5 text-white/70" style="animation-delay: 0.7s;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-accent shrink-0"></span>
+                    <span class="text-xs"><b class="text-white">분당 ⨯ 안과</b> · TOP 3 진입</span>
+                  </li>
+                  <li class="live-feed-row flex items-center gap-2.5 text-white/70" style="animation-delay: 1.0s;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                    <span class="text-xs"><b class="text-white">청담 ⨯ 피부과</b> · 백링크 +12</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* [4] KPI 카드 - 광고비 0원 */}
+              <div class="bento-card rounded-3xl p-6 flex flex-col justify-between">
+                <div>
+                  <i class="fas fa-trophy text-accent text-2xl mb-3"></i>
+                  <div class="text-3xl md:text-4xl font-extrabold text-white tabular-nums leading-none">
+                    <span class="counter" data-target="45">0</span>
+                  </div>
+                  <div class="mt-1 text-xs text-white/50 font-bold">개 1위 · 광고비 0원</div>
+                </div>
+                <div class="mt-4 text-[10px] text-accent/80 font-semibold">
+                  <i class="fas fa-arrow-up text-[8px]"></i> 평균 +37% 신규 발견
+                </div>
+              </div>
+
+              {/* [5] KPI 카드 - 9.4초 */}
+              <div class="bento-card rounded-3xl p-6 flex flex-col justify-between">
+                <div>
+                  <i class="fas fa-bolt text-brand-300 text-2xl mb-3"></i>
+                  <div class="text-3xl md:text-4xl font-extrabold text-white tabular-nums leading-none">
+                    <span class="counter" data-target="9.4">0</span><span class="text-white/40">초</span>
+                  </div>
+                  <div class="mt-1 text-xs text-white/50 font-bold">평균 응답 속도</div>
+                </div>
+                <div class="mt-4 text-[10px] text-brand-300 font-semibold">
+                  <i class="fas fa-stopwatch text-[8px]"></i> 실측 SERP TOP 100
+                </div>
+              </div>
             </div>
 
-            {/* 카운터 4개 */}
-            <div class="mt-16 md:mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 reveal">
-              {[
-                { num: '6000', suffix: '+', label: '검증 원장님', sub: '페이션트퍼널 교육 수료' },
-                { num: '2.1', suffix: '배', label: '평균 매출 성장', sub: '시스템 적용 병원 평균' },
-                { num: '40', suffix: '%', label: '광고비 절감', sub: '네이버 의존도 감축' },
-                { num: '62', suffix: '%', label: '상담 전환율', sub: '내원 → 결제 평균' },
-              ].map((s) => (
-                <div class="relative p-5 md:p-6 rounded-2xl bg-white/70 backdrop-blur border border-ink-200/80 shadow-card hover:shadow-card-hover transition card-lift">
-                  <div class="text-3xl md:text-4xl font-extrabold text-ink-900 tracking-tight tabular-nums">
-                    <span class="counter" data-target={s.num} data-suffix={s.suffix}>0</span>
-                    <span class="text-ink-500">{s.suffix}</span>
-                  </div>
-                  <div class="mt-1 text-sm md:text-base font-semibold text-ink-700">{s.label}</div>
-                  <div class="mt-0.5 text-xs text-ink-500">{s.sub}</div>
+            {/* 신뢰 마퀴 — 무한 스크롤 (다크) */}
+            <div class="mt-20 md:mt-24 reveal">
+              <div class="text-center text-xs uppercase tracking-[0.25em] text-white/40 font-semibold mb-6">
+                <i class="fas fa-circle-check text-accent mr-1.5"></i>전국 1,847개 병원이 사용 중
+              </div>
+              <div class="marquee-mask overflow-hidden">
+                <div class="marquee flex gap-3 w-max">
+                  {[...Array(2)].map(() => (
+                    <>
+                      {[
+                        { ic: 'fa-tooth', t: '치과', n: '서울 ⨯ 강남' },
+                        { ic: 'fa-hand-holding-medical', t: '한의원', n: '부산 ⨯ 해운대' },
+                        { ic: 'fa-eye', t: '안과', n: '대전 ⨯ 둔산' },
+                        { ic: 'fa-bone', t: '정형외과', n: '광주 ⨯ 봉선' },
+                        { ic: 'fa-syringe', t: '피부과', n: '인천 ⨯ 송도' },
+                        { ic: 'fa-heart-pulse', t: '내과', n: '대구 ⨯ 수성' },
+                        { ic: 'fa-baby', t: '산부인과', n: '세종 ⨯ 나성' },
+                        { ic: 'fa-stethoscope', t: '성형외과', n: '울산 ⨯ 삼산' },
+                        { ic: 'fa-ear-listen', t: '이비인후과', n: '제주 ⨯ 노형' },
+                        { ic: 'fa-child', t: '소아과', n: '수원 ⨯ 영통' },
+                      ].map((c) => (
+                        <div class="shrink-0 inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.04] backdrop-blur border border-white/10">
+                          <span class="w-6 h-6 rounded-md bg-gradient-to-br from-brand/20 to-accent/20 flex items-center justify-center text-brand-300">
+                            <i class={`fas ${c.ic} text-[10px]`}></i>
+                          </span>
+                          <span class="text-xs font-bold text-white">{c.t}</span>
+                          <span class="text-[10px] text-white/50">{c.n}</span>
+                          <span class="inline-flex items-center gap-1 text-[9px] font-semibold text-accent">
+                            <span class="w-1 h-1 rounded-full bg-accent animate-pulse"></span>완료
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
 
-          <div id="loading-overlay" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-md flex items-center justify-center">
+          {/* 하단 페이드 — hero → live-demo 자연스러운 연결 (다크 → 라이트) */}
+          <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white pointer-events-none"></div>
+
+          <div id="loading-overlay" class="hidden fixed inset-0 z-50 bg-[#0A0E1F]/95 backdrop-blur-md flex items-center justify-center">
             <div class="max-w-md w-full px-6 text-center">
               <div class="relative w-24 h-24 mx-auto">
-                <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-white/10"></div>
                 <div class="absolute inset-0 rounded-full border-4 border-brand border-t-transparent animate-spin"></div>
                 <div class="absolute inset-2 rounded-full bg-gradient-to-br from-brand to-accent flex items-center justify-center text-white">
                   <i class="fas fa-arrow-trend-up text-xl"></i>
                 </div>
               </div>
-              <h3 class="mt-7 text-2xl font-extrabold text-ink-900">진단 중입니다</h3>
-              <p id="loading-message" class="mt-2 text-ink-600">구글 색인에서 키워드 긁는 중...</p>
-              <div class="mt-7 space-y-2 text-sm text-ink-400">
+              <h3 class="mt-7 text-2xl font-extrabold text-white">진단 중입니다</h3>
+              <p id="loading-message" class="mt-2 text-white/60">구글 색인에서 키워드 긁는 중...</p>
+              <div class="mt-7 space-y-2 text-sm text-white/40">
                 <div class="flex items-center justify-center gap-2"><i class="fas fa-check text-accent"></i> URL 검증</div>
                 <div class="flex items-center justify-center gap-2" id="step-2"><i class="far fa-circle"></i> 구글 색인 조회</div>
                 <div class="flex items-center justify-center gap-2" id="step-3"><i class="far fa-circle"></i> 의료 키워드 매칭</div>
@@ -226,6 +411,29 @@ export const LandingPage: FC = () => {
           </div>
         </section>
 
+        {/* ============== 마퀴 신뢰 띠 ============== */}
+        <section class="relative py-10 bg-gradient-to-b from-white to-ink-50/40 border-y border-ink-100 overflow-hidden">
+          <div class="max-w-7xl mx-auto px-5 mb-5 text-center">
+            <span class="text-xs font-semibold uppercase tracking-widest text-ink-400">
+              <i class="fas fa-stethoscope mr-1.5 text-brand"></i>
+              전국 6,000+ 원장님이 검증한 의료 키워드 사전
+            </span>
+          </div>
+          <div class="marquee-mask">
+            <div class="marquee-track whitespace-nowrap">
+              {[
+                ...['치과', '한의원', '피부과', '성형외과', '안과', '정형외과', '이비인후과', '산부인과', '내과', '소아과', '통증의학과', '비뇨의학과'],
+                ...['치과', '한의원', '피부과', '성형외과', '안과', '정형외과', '이비인후과', '산부인과', '내과', '소아과', '통증의학과', '비뇨의학과'],
+              ].map((s, i) => (
+                <span class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-ink-200 shadow-sm text-sm font-semibold text-ink-700 shrink-0">
+                  <i class={`fas ${i % 4 === 0 ? 'fa-tooth text-brand' : i % 4 === 1 ? 'fa-mortar-pestle text-accent' : i % 4 === 2 ? 'fa-hand-holding-medical text-purple-500' : 'fa-stethoscope text-rose-500'}`}></i>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ============== 신뢰 (원장님 자산) ============== */}
         <section id="trust" class="relative bg-gradient-to-b from-white via-brand-50/30 to-white border-y border-ink-100">
           <a id="why-us" class="absolute -top-20" aria-hidden="true"></a>
@@ -293,7 +501,7 @@ export const LandingPage: FC = () => {
                     { icon: 'fa-heart-pulse', title: '왜 만들었나', desc: '"필요한 진료를 받지 못하는 사람이 없도록 하자". 광고비에 치이는 원장님들이 자기 환자에게 가닿기 위한 인프라를 만듭니다.' },
                     { icon: 'fa-shield-halved', title: '광고가 아닌 자산', desc: '광고는 끄면 사라지지만, SEO 1위는 자산입니다. 그래서 측정·추적·복리화가 가능한 도구를 직접 만들었습니다.' },
                   ].map((c) => (
-                    <div class="p-6 rounded-2xl bg-white border border-ink-200 shadow-card hover:shadow-card-hover card-lift">
+                    <div class="spotlight p-6 rounded-2xl bg-white border border-ink-200 shadow-card hover:shadow-card-hover card-lift">
                       <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand flex items-center justify-center mb-4">
                         <i class={`fas ${c.icon}`}></i>
                       </div>
@@ -379,7 +587,7 @@ export const LandingPage: FC = () => {
                 { icon: 'fa-link', color: 'from-rose-500 to-rose-700', title: '백링크 · 도메인 권위', desc: '어떤 사이트가 살아있는 링크로 권위를 흘려보내는지, 경쟁사는 어디서 받는지 추적.', badge: 'Pro+' },
                 { icon: 'fa-arrow-up-right-from-square', color: 'from-purple-500 to-purple-700', title: 'GSC 연동', desc: 'Google Search Console OAuth 연결. 노출됐지만 우리가 못 찾은 키워드까지 100% 캐치.', badge: 'Premium' },
               ].map((f) => (
-                <div class="group relative p-6 rounded-2xl bg-white border border-ink-200 hover:shadow-card-hover card-lift transition">
+                <div class="spotlight group relative p-6 rounded-2xl bg-white border border-ink-200 hover:shadow-card-hover card-lift transition">
                   <div class={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center text-white shadow-md mb-5`}>
                     <i class={`fas ${f.icon}`}></i>
                   </div>
@@ -544,7 +752,7 @@ export const LandingPage: FC = () => {
                 <p class="mt-5 text-white/70 text-base md:text-lg">
                   카드 등록 X · 이메일 입력 X · 회원가입 X
                 </p>
-                <a href="#diagnose" class="mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-ink-900 font-extrabold text-lg shadow-glow-accent hover:scale-105 transition">
+                <a href="#diagnose" class="magnetic mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-ink-900 font-extrabold text-lg shadow-glow-accent hover:scale-105 transition">
                   <i class="fas fa-arrow-up"></i>
                   무료 진단 받기
                 </a>

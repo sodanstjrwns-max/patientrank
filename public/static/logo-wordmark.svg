@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" width="480" height="120">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F1B3D"/>
+      <stop offset="100%" stop-color="#1E40AF"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="120" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="trend2" x1="0" y1="0" x2="120" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F472B6"/>
+      <stop offset="100%" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="text2" x1="0" y1="0" x2="360" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="60%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App icon (left) -->
+  <g>
+    <rect x="0" y="0" width="120" height="120" rx="26" fill="url(#bg2)"/>
+    <rect x="22" y="74" width="14" height="22" rx="3" fill="url(#bar2)" opacity="0.85"/>
+    <rect x="42" y="58" width="14" height="38" rx="3" fill="url(#bar2)" opacity="0.92"/>
+    <rect x="62" y="38" width="14" height="58" rx="3" fill="url(#bar2)"/>
+    <path d="M 28 72 L 49 56 L 69 38 L 90 24" fill="none" stroke="url(#trend2)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 90 24 L 82 26 L 88 32 Z" fill="#FBBF24"/>
+    <g transform="translate(90 24)">
+      <circle r="7" fill="#FFFFFF" opacity="0.95"/>
+      <rect x="-3.5" y="-1" width="7" height="2" rx="0.5" fill="#1E40AF"/>
+      <rect x="-1" y="-3.5" width="2" height="7" rx="0.5" fill="#1E40AF"/>
+    </g>
+  </g>
+
+  <!-- Wordmark (right) -->
+  <g transform="translate(140 0)">
+    <text x="0" y="60" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="800" fill="#0F1B3D" letter-spacing="-1.2">Patient<tspan fill="url(#text2)">Rank</tspan></text>
+    <text x="2" y="88" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="500" fill="#64748B" letter-spacing="0.3">Medical-only Google SEO Diagnostic SaaS</text>
+    <g transform="translate(2 100)">
+      <rect width="60" height="16" rx="4" fill="#EFF6FF"/>
+      <text x="30" y="12" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="700" fill="#1E40AF" letter-spacing="0.5">v1.0 · 2026</text>
+    </g>
+  </g>
+</svg>

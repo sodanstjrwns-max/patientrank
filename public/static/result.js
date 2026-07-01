@@ -29,12 +29,12 @@
     ctx.clearRect(0, 0, size, size);
 
     if (total === 0) {
-      ctx.strokeStyle = '#E2E8F0';
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
       ctx.lineWidth = rw;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = '#94A3B8';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.font = '12px Pretendard, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('데이터 없음', cx, cy + 4);
@@ -54,14 +54,14 @@
       start += ang;
     });
 
-    // 중앙 텍스트
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 20px Pretendard, sans-serif';
+    // 중앙 텍스트 (다크 톤)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 22px Pretendard, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(String(total), cx, cy + 2);
-    ctx.fillStyle = '#64748B';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '10px Pretendard, sans-serif';
-    ctx.fillText('키워드', cx, cy + 16);
+    ctx.fillText('키워드', cx, cy + 18);
   }
 
   // ====== 키워드 검색 필터 ======
@@ -293,19 +293,230 @@
     }
   }
 
-  // Init
-  document.addEventListener('DOMContentLoaded', () => {
-    drawDonut();
-    setupSearch();
-    setupLeadForm();
-    setupRescan();
-    setupLongtail();
-  });
-  if (document.readyState !== 'loading') {
-    drawDonut();
-    setupSearch();
-    setupLeadForm();
-    setupRescan();
-    setupLongtail();
+  // ====== GSC (Google Search Console) 연동 ======
+  function fmtNumber(n) {
+    if (n == null || isNaN(n)) return '—';
+    if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '만';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(Math.round(n));
   }
+
+  function setupGsc() {
+    const card = document.getElementById('gsc-card');
+    if (!card) return;
+    const scanId = card.getAttribute('data-scan-id');
+    if (!scanId) return;
+
+    const connectBtn = document.getElementById('gsc-connect-btn');
+    const syncBtn = document.getElementById('gsc-sync-btn');
+    const disconnectBtn = document.getElementById('gsc-disconnect-btn');
+    const upgradeBtn = document.getElementById('gsc-upgrade-btn');
+    const sitesPanel = document.getElementById('gsc-sites-panel');
+    const siteSelect = document.getElementById('gsc-site-select');
+    const runSyncBtn = document.getElementById('gsc-run-sync-btn');
+    const syncStatus = document.getElementById('gsc-sync-status');
+    const resultPanel = document.getElementById('gsc-result-panel');
+
+    function show(el) { if (el) el.classList.remove('hidden'); }
+    function hide(el) { if (el) el.classList.add('hidden'); }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/gsc/status');
+        if (res.status === 401) {
+          // 비로그인 → 연결 버튼만 보여주고 클릭 시 로그인 유도
+          show(connectBtn);
+          return;
+        }
+        if (res.status === 403) {
+          // Pro 플랜 필요
+          show(upgradeBtn);
+          return;
+        }
+        const data = await res.json();
+        if (data.ok && data.connected) {
+          // 연결됨: 동기화 버튼 + 해제 버튼
+          show(syncBtn);
+          show(disconnectBtn);
+          if (data.last_site_url) {
+            syncBtn.setAttribute('data-last-site', data.last_site_url);
+          }
+        } else {
+          // 권한 OK · 미연결
+          show(connectBtn);
+        }
+      } catch (e) {
+        console.warn('gsc status error', e);
+        show(connectBtn);
+      }
+    }
+
+    if (connectBtn) {
+      connectBtn.addEventListener('click', () => {
+        location.href = '/auth/gsc/connect?next=' + encodeURIComponent(location.pathname + '?gsc=ready');
+      });
+    }
+
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', async () => {
+        if (!confirm('GSC 연결을 해제할까요? 다음에 다시 연결할 수 있습니다.')) return;
+        try {
+          await fetch('/api/gsc/disconnect', { method: 'POST' });
+          hide(syncBtn); hide(disconnectBtn); hide(sitesPanel); hide(resultPanel);
+          show(connectBtn);
+        } catch (e) { console.warn(e); }
+      });
+    }
+
+    if (syncBtn) {
+      syncBtn.addEventListener('click', async () => {
+        show(sitesPanel);
+        siteSelect.innerHTML = '<option value="">불러오는 중...</option>';
+        try {
+          const res = await fetch('/api/gsc/sites');
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            siteSelect.innerHTML = '<option value="">사이트 목록을 가져올 수 없습니다</option>';
+            return;
+          }
+          const sites = data.sites || [];
+          if (sites.length === 0) {
+            siteSelect.innerHTML = '<option value="">등록된 사이트가 없습니다</option>';
+            return;
+          }
+          const lastSite = syncBtn.getAttribute('data-last-site') || '';
+          siteSelect.innerHTML = sites.map(function (s) {
+            const sel = s.siteUrl === lastSite ? ' selected' : '';
+            return '<option value="' + s.siteUrl + '"' + sel + '>' + s.siteUrl + ' (' + s.permissionLevel + ')</option>';
+          }).join('');
+        } catch (e) {
+          siteSelect.innerHTML = '<option value="">네트워크 오류</option>';
+        }
+      });
+    }
+
+    if (runSyncBtn) {
+      runSyncBtn.addEventListener('click', async () => {
+        const siteUrl = siteSelect.value;
+        if (!siteUrl) {
+          alert('사이트를 먼저 선택해주세요');
+          return;
+        }
+        const orig = runSyncBtn.innerHTML;
+        runSyncBtn.disabled = true;
+        runSyncBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>가져오는 중...';
+        show(syncStatus);
+        if (syncStatus) syncStatus.innerHTML = '<i class="fas fa-cloud-download-alt mr-2"></i>최근 28일 GSC 데이터 동기화 중... (보통 5~15초)';
+
+        try {
+          const res = await fetch('/api/scan/' + scanId + '/gsc-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ site_url: siteUrl }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            if (syncStatus) syncStatus.innerHTML = '<i class="fas fa-exclamation-circle text-amber-300 mr-2"></i>' + (data.message || '동기화 실패');
+            runSyncBtn.disabled = false;
+            runSyncBtn.innerHTML = orig;
+            return;
+          }
+          renderGscResult(data.result);
+          if (syncStatus) syncStatus.innerHTML = '<i class="fas fa-check-circle text-emerald-300 mr-2"></i>동기화 완료 · ' + (data.result.total_rows || 0) + '개 키워드 수신';
+          runSyncBtn.disabled = false;
+          runSyncBtn.innerHTML = '<i class="fas fa-sync mr-2"></i>다시 동기화';
+        } catch (e) {
+          console.error(e);
+          if (syncStatus) syncStatus.innerHTML = '<i class="fas fa-exclamation-circle text-amber-300 mr-2"></i>네트워크 오류';
+          runSyncBtn.disabled = false;
+          runSyncBtn.innerHTML = orig;
+        }
+      });
+    }
+
+    function renderGscResult(result) {
+      if (!result) return;
+      show(resultPanel);
+      const totalRowsEl = document.getElementById('gsc-total-rows');
+      const newFoundEl = document.getElementById('gsc-new-found');
+      const missedImpEl = document.getElementById('gsc-missed-impressions');
+      const dateRangeEl = document.getElementById('gsc-date-range');
+      const tbody = document.getElementById('gsc-missed-tbody');
+      if (totalRowsEl) totalRowsEl.textContent = fmtNumber(result.total_rows);
+      if (newFoundEl) newFoundEl.textContent = fmtNumber(result.new_keywords_found);
+      if (missedImpEl) missedImpEl.textContent = fmtNumber(result.missed_impressions);
+      if (dateRangeEl && result.date_range) {
+        dateRangeEl.textContent = result.date_range.start + ' ~ ' + result.date_range.end;
+      }
+      if (tbody) {
+        const rows = result.top_missed || [];
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-8 text-center text-slate-400 text-sm">놓친 키워드가 없습니다 — 모든 노출 키워드를 잡고 있습니다 🎉</td></tr>';
+        } else {
+          tbody.innerHTML = rows.slice(0, 50).map(function (r, i) {
+            const ctrPct = r.ctr ? (r.ctr * 100).toFixed(1) + '%' : '0%';
+            const pos = r.avg_position ? r.avg_position.toFixed(1) : '—';
+            const posBadge = r.avg_position && r.avg_position <= 10
+              ? 'bg-amber-100 text-amber-800'
+              : r.avg_position && r.avg_position <= 30
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-slate-100 text-slate-700';
+            return '<tr class="hover:bg-slate-50">'
+              + '<td class="px-5 py-3 text-slate-400 tabular-nums">' + (i + 1) + '</td>'
+              + '<td class="px-5 py-3 font-medium text-slate-900">' + escapeHtml(r.keyword) + '</td>'
+              + '<td class="px-5 py-3 text-right tabular-nums hidden md:table-cell">' + fmtNumber(r.impressions) + '</td>'
+              + '<td class="px-5 py-3 text-right tabular-nums hidden md:table-cell">' + fmtNumber(r.clicks) + '</td>'
+              + '<td class="px-5 py-3 text-right tabular-nums hidden md:table-cell text-slate-500">' + ctrPct + '</td>'
+              + '<td class="px-5 py-3 text-right"><span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ' + posBadge + '">' + pos + '위</span></td>'
+              + '</tr>';
+          }).join('');
+        }
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    // 콜백 후 ?gsc_connected=1 으로 돌아온 경우, 자동으로 사이트 목록 열기
+    const params = new URLSearchParams(location.search);
+    if (params.get('gsc_connected') === '1' && syncBtn) {
+      setTimeout(() => syncBtn.click(), 300);
+    }
+
+    checkStatus();
+  }
+
+  // reveal 안전망: .reveal 요소 강제로 .in 토글 (스크롤 진입 시) + 초기 viewport 안 요소 즉시 표시
+  function setupReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    if (!('IntersectionObserver' in window)) {
+      els.forEach((el) => el.classList.add('in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.05, rootMargin: '0px 0px -10% 0px' });
+    els.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight * 1.2) el.classList.add('in');
+      else io.observe(el);
+    });
+  }
+
+  // Init
+  function initAll() {
+    drawDonut();
+    setupSearch();
+    setupLeadForm();
+    setupRescan();
+    setupLongtail();
+    setupGsc();
+    setupReveal();
+  }
+  document.addEventListener('DOMContentLoaded', initAll);
+  if (document.readyState !== 'loading') initAll();
 })();

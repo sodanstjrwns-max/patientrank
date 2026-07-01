@@ -5,6 +5,7 @@ import { fetchRankedKeywords, demoRankedKeywords, fetchCompetitorKeywordGap } fr
 import { analyzeBacklinks } from './backlinks'
 import { computeCounters, extractDomain } from './utils'
 import { discoverLongTailKeywords } from './longtail-discovery'
+import { saveSnapshot } from './snapshot-service'
 
 // 치과/의료 경쟁사 도메인 리스트 (갭 분석용)
 const DEFAULT_COMPETITORS: Record<string, string[]> = {
@@ -171,7 +172,7 @@ export async function runScan(
     console.error('backlinks/gaps/longtail analyze failed:', e)
   }
 
-  return {
+  const summary: ScanSummary = {
     scanId,
     url: domain,
     domain,
@@ -192,6 +193,21 @@ export async function runScan(
     longtail_keywords: longtailKeywords,
     longtail_meta: longtailMeta,
   }
+
+  // Day 1-D: 시계열 스냅샷 자동 저장 (UPSERT - 같은 날 재스캔하면 업데이트)
+  try {
+    await saveSnapshot(env, {
+      user_id: opts.userId ?? null,
+      domain,
+      scan_id: scanId,
+      scan: summary,
+      trigger_type: 'manual',
+    })
+  } catch (e) {
+    console.error('snapshot save failed (non-fatal):', e)
+  }
+
+  return summary
 }
 
 /**

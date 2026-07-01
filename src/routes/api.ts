@@ -6,6 +6,13 @@ import { runScan, countRecentScansByIp, getScanById } from '../lib/scan-service'
 import { discoverLongTailKeywords } from '../lib/longtail-discovery'
 import { prepareAndStartChunks, processChunk, triggerPrepare } from '../lib/longtail-runner'
 import { verifyChunkToken } from '../lib/longtail-job'
+import {
+  getValidGscAccessToken,
+  listGscSites,
+  syncGscForScan,
+  loadGscKeywordsForScan,
+  disconnectGsc,
+} from '../lib/gsc'
 
 const api = new Hono<{ Bindings: Bindings }>()
 
@@ -335,6 +342,139 @@ api.post('/leads', async (c) => {
   }
 
   return c.json({ ok: true, message: '리포트가 발송되었습니다' })
+})
+
+/**
+ * 공통: GSC 권한 체크 (프리미엄 + 본인 스캔)
+ */
+async function checkGscAuth(c: any) {
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  if (!viewer) {
+    return { ok: false as const, status: 401, body: { error: 'AUTH_REQUIRED', message: '로그인이 필요합니다' } }
+  }
+  const allowed = viewer.is_admin === 1 || viewer.plan === 'pro' || viewer.plan === 'agency'
+  if (!allowed) {
+    return { ok: false as const, status: 403, body: { error: 'PREMIUM_REQUIRED', message: 'GSC 연동은 Pro 플랜부터 사용 가능합니다' } }
+  }
+  return { ok: true as const, viewer }
+}
+
+/**
+ * GET /api/gsc/status
+ * 현재 유저의 GSC 연결 상태 + 마지막 site_url
+ */
+api.get('/gsc/status', async (c) => {
+  const auth = await checkGscAuth(c)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const row = await c.env.DB.prepare(
+    `SELECT scope, expires_at, connected_at, updated_at, last_site_url
+     FROM gsc_tokens WHERE user_id = ?`
+  ).bind(auth.viewer.id).first<any>()
+
+  if (!row) return c.json({ ok: true, connected: false })
+  return c.json({
+    ok: true,
+    connected: true,
+    scope: row.scope,
+    expires_at: row.expires_at,
+    connected_at: row.connected_at,
+    updated_at: row.updated_at,
+    last_site_url: row.last_site_url,
+  })
+})
+
+/**
+ * GET /api/gsc/sites
+ * 유저의 GSC에 등록된 사이트 목록
+ */
+api.get('/gsc/sites', async (c) => {
+  const auth = await checkGscAuth(c)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const t = await getValidGscAccessToken(c, auth.viewer.id)
+  if (!t) return c.json({ error: 'GSC_NOT_CONNECTED', message: 'GSC 연결이 필요합니다' }, 412)
+
+  const sites = await listGscSites(t.access_token)
+  return c.json({ ok: true, sites })
+})
+
+/**
+ * POST /api/gsc/disconnect
+ * 연결 해제 (refresh_token 파기)
+ */
+api.post('/gsc/disconnect', async (c) => {
+  const auth = await checkGscAuth(c)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+  await disconnectGsc(c, auth.viewer.id)
+  return c.json({ ok: true })
+})
+
+/**
+ * POST /api/scan/:id/gsc-sync
+ * body: { site_url: string }
+ * 해당 scan 결과(TOP100 + longtail)와 GSC 키워드를 비교 → "노출됐지만 우리가 못 잡은 키워드" 추출
+ */
+api.post('/scan/:id/gsc-sync', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+
+  const auth = await checkGscAuth(c)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const body = await c.req.json().catch(() => ({})) as { site_url?: string }
+  const siteUrl = String(body?.site_url || '').trim()
+  if (!siteUrl) return c.json({ error: 'BAD_INPUT', message: 'site_url이 필요합니다' }, 400)
+
+  // 본인 스캔인지 확인 (admin은 우회)
+  const scan = await c.env.DB.prepare(
+    `SELECT id, url, user_id FROM scans WHERE id = ?`
+  ).bind(id).first<any>()
+  if (!scan) return c.json({ error: 'NOT_FOUND' }, 404)
+  const isOwner = scan.user_id && Number(scan.user_id) === auth.viewer.id
+  if (!auth.viewer.is_admin && !isOwner) {
+    return c.json({ error: 'FORBIDDEN', message: '본인 스캔에서만 GSC 연동이 가능합니다' }, 403)
+  }
+
+  // 알려진 키워드 (TOP100 + longtail 캐시)
+  const knownKeywords: string[] = []
+  const fullScan = await getScanById(c.env, id)
+  if (fullScan) {
+    for (const k of fullScan.keywords || []) knownKeywords.push(k.keyword)
+    for (const k of fullScan.longtail_keywords || []) knownKeywords.push(k.keyword)
+  }
+
+  try {
+    const result = await syncGscForScan(c, auth.viewer.id, id, siteUrl, knownKeywords)
+    if (!result) return c.json({ error: 'GSC_NOT_CONNECTED', message: 'GSC 토큰이 만료됐습니다. 다시 연결해주세요' }, 412)
+    return c.json({ ok: true, result })
+  } catch (e: any) {
+    console.error('gsc-sync error', e)
+    return c.json({ error: 'SYNC_FAILED', message: e?.message || 'GSC 동기화 실패' }, 500)
+  }
+})
+
+/**
+ * GET /api/scan/:id/gsc-keywords
+ * 저장된 GSC snapshot 키워드 조회
+ */
+api.get('/scan/:id/gsc-keywords', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'BAD_ID' }, 400)
+
+  const auth = await checkGscAuth(c)
+  if (!auth.ok) return c.json(auth.body, auth.status as any)
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT keyword, clicks, impressions, ctr, avg_position, page_url, site_url, created_at
+     FROM gsc_keyword_snapshots
+     WHERE scan_id = ? AND user_id = ?
+     ORDER BY impressions DESC
+     LIMIT 200`
+  ).bind(id, auth.viewer.id).all<any>()
+
+  return c.json({ ok: true, keywords: results || [] })
 })
 
 export default api

@@ -19,6 +19,10 @@
       "id": "5b2a79a58f58499b930ffc258cb03227"
     }
   ],
+  // Day 1-C: Cron Trigger — Cloudflare Pages는 wrangler.jsonc의 triggers 필드 미지원
+  // → Dashboard(Settings > Functions > Cron Triggers)에서 "0 21 * * 0" 수동 등록
+  //   매주 월요일 06:00 KST (= UTC 21:00 일요일)
+  //   scheduled 핸들러는 src/index.tsx 의 default export에 이미 구현됨
   "vars": {}
   // Production secrets (set via: npx wrangler pages secret put <KEY>):
   //   DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD
