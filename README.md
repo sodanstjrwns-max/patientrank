@@ -60,10 +60,18 @@
 - 페이션트 퍼널 수료생 전용 LP `/pf-alumni`
 - 경쟁사 추적 `/dashboard/competitors`
 
-### 크론 (Cloudflare Dashboard에서 수동 등록 필요)
-- `0 21 * * 0` (월 06:00 KST) — 주간 리스캔 + 스냅샷 + AI 가이드 + 카카오 리포트
-- `0 21 * * *` (매일 06:00 KST) — 정기결제 자동 청구
-- ⚠️ Pages는 wrangler.jsonc triggers 미지원 → Dashboard > Settings > Functions > Cron Triggers에서 등록 확인 필요
+### ✅ 크론 자동화 (별도 Worker 배포 완료 — 2026-07-01)
+- Pages는 cron 미지원 → **경량 Worker `patientrank-cron`** 이 스케줄에 맞춰 메인 앱의 `/api/cron/run`을 Bearer 토큰으로 호출
+- 스케줄: `0 21 * * SUN` (월 06:00 KST, 주간 리스캔+카카오 리포트) / `0 21 * * *` (매일 06:00 KST, 정기결제)
+- 인증: `CRON_SECRET` (cron Worker 시크릿 + Pages 시크릿 양쪽 동일 값)
+- 수동 실행: `POST /api/cron/run?job=weekly|daily` (Bearer CRON_SECRET) / 이력: `GET /api/cron/status` (어드민)
+- 주간 카카오 리포트에 **1순위 콘텐츠 처방(`#{top_rx}`)** 포함 (템플릿에 변수 추가 시 자동 반영)
+
+### ✅ 토스 웹훅 (2026-07-01)
+- `POST /api/webhook/toss` — 카드사/토스 쪽 취소·환불 동기화
+- 보안: 웹훅 payload를 신뢰하지 않고 paymentKey로 토스 API 재조회 (위조 방지)
+- 전액 환불 시 구독 past_due 처리, refund_amount_krw/refund_reason 기록
+- ⚠️ **필수 수동 작업**: 토스 개발자센터 > 웹훅 > `https://patientrank.kr/api/webhook/toss` 등록 (PAYMENT_STATUS_CHANGED 이벤트)
 
 ## Functional Entry URIs
 
@@ -95,13 +103,16 @@
 - `GET /api/admin/stats`
 - `POST /api/admin/beta/invite` `POST /api/admin/beta/invite-all`
 - `POST /api/_internal/longtail/prepare|chunk` — HMAC 서명 워커 체이닝
+- `POST /api/cron/run?job=weekly|daily` — 크론 실행 (Bearer CRON_SECRET)
+- `GET /api/cron/status` — 크론 실행 이력 (어드민)
+- `POST /api/webhook/toss` — 토스 결제 웹훅 (재조회 검증)
 
 ## Data Architecture
 - **Database**: Cloudflare D1 — users, sessions, domains, scans, keyword_snapshots, leads,
   backlinks, gsc_tokens, gsc_keyword_snapshots, scan_snapshots, ai_action_guides,
   subscriptions, payments, coupons, beta_signups, kakao_logs, competitors, cron_runs (마이그레이션 0001~0009)
 - **Cache**: Cloudflare KV — `scan:{domain}` (24h), `longtail:{domain}:*` (3d), `longtail:job:{id}` (2h)
-- **Secrets**: DATAFORSEO_*, RESEND_API_KEY, GOOGLE_CLIENT_*, JWT_SECRET, TOSS_*, KAKAO_*, OPENAI_API_KEY
+- **Secrets**: DATAFORSEO_*, RESEND_API_KEY, GOOGLE_CLIENT_*, JWT_SECRET, TOSS_*, KAKAO_*, OPENAI_API_KEY, CRON_SECRET
 
 ## User Guide
 1. `/` 접속 → 병원 홈페이지 URL 입력 → 10초 후 결과
@@ -115,10 +126,12 @@
 - 🎟️ 쿠폰 `current_uses` 증가 로직 추가 (무한 사용 버그 수정)
 - 🔒 에러 페이지 스택 트레이스 비노출 (어드민만 표시) / JWT_SECRET·TOSS 키 폴백 제거
 - 🆕 콘텐츠 처방전 엔진 + 결과 페이지 섹션 + API
+- ⏰ 크론 자동화 (patientrank-cron Worker) + 토스 웹훅 + 카카오 리포트에 처방전 연동
+- 🧪 vitest 단위 테스트 19건 (쿠폰 검증·소비 / 처방전 분류·스코어링·중복제거) — `npm run test:unit`
 
 ## Not Yet Implemented
-- 토스 웹훅 (카드사 측 취소/환불 동기화)
-- 결제·쿠폰 단위 테스트 (vitest)
+- 토스 개발자센터 웹훅 URL 등록 (수동 1회 — 위 ✅ 토스 웹훅 섹션 참조)
+- 카카오 WEEKLY 템플릿에 `#{top_rx}` 변수 추가 승인 (솔라피 템플릿 수정 — 미추가 시에도 기존 템플릿과 호환)
 - 블로그 자동화 (AEO), PDF 리포트
 - invite-all 비동기 체이닝 (현재 순차 루프 — 200명 이상 시 개선 필요)
 
@@ -128,6 +141,14 @@ npm run db:migrate:local
 npm run build
 pm2 start ecosystem.config.cjs
 curl http://localhost:3000/api/health
+npm run test:unit   # vitest 단위 테스트
+```
+
+## Cron Worker (별도 배포)
+```bash
+cd cron-worker
+npx wrangler deploy               # patientrank-cron Worker 배포
+npx wrangler secret put CRON_SECRET  # Pages CRON_SECRET과 동일하게
 ```
 
 ## Deployment

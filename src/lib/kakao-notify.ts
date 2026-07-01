@@ -162,6 +162,7 @@ export async function sendWeeklyReport(
     score_change: string // "+5점" 또는 "-3점"
     top10_change: string // "TOP10 +2개"
     result_url: string
+    top_rx?: string // 이번 주 1순위 콘텐츠 처방 (예: "'임플란트 가격' 블로그 1편이면 TOP10 진입 가능")
   },
 ): Promise<KakaoSendResult> {
   const templateId = (env as any).KAKAO_TEMPLATE_ID_WEEKLY
@@ -170,19 +171,25 @@ export async function sendWeeklyReport(
     return { success: false, errorCode: 'MISSING_TEMPLATE', errorMessage: 'WEEKLY 템플릿 미설정' }
   }
 
+  const kakaoVars: Record<string, string> = {
+    '#{name}': variables.name,
+    '#{domain}': variables.domain,
+    '#{score_change}': variables.score_change,
+    '#{top10_change}': variables.top10_change,
+  }
+  // 템플릿에 #{top_rx} 변수가 포함된 경우에만 값 전달 (미포함 템플릿과 호환)
+  if (variables.top_rx) {
+    kakaoVars['#{top_rx}'] = variables.top_rx
+  }
+
   const result = await sendKakaoMessage(env, {
     to: phone,
     templateId,
     pfId,
-    variables: {
-      '#{name}': variables.name,
-      '#{domain}': variables.domain,
-      '#{score_change}': variables.score_change,
-      '#{top10_change}': variables.top10_change,
-    },
+    variables: kakaoVars,
   })
 
-  const body = `[${variables.name}님] ${variables.domain}\n이번 주: ${variables.score_change}, ${variables.top10_change}`
+  const body = `[${variables.name}님] ${variables.domain}\n이번 주: ${variables.score_change}, ${variables.top10_change}${variables.top_rx ? `\n처방: ${variables.top_rx}` : ''}`
   await logKakaoMessage(env, userId, phone, 'WEEKLY_REPORT', '주간 리포트', body, variables.result_url, result)
   return result
 }

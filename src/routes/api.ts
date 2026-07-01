@@ -79,6 +79,59 @@ api.get('/scan/:id', async (c) => {
 })
 
 /**
+ * POST /api/cron/run?job=weekly|daily
+ * 크론 실행 엔드포인트 — Cloudflare Pages는 scheduled 핸들러를 지원하지 않으므로
+ * 별도 크론 Worker(patientrank-cron)가 이 엔드포인트를 호출한다.
+ * 인증: Authorization: Bearer {CRON_SECRET}
+ */
+api.post('/cron/run', async (c) => {
+  const secret = (c.env as any).CRON_SECRET
+  if (!secret) return c.json({ error: 'CRON_NOT_CONFIGURED' }, 503)
+  const auth = c.req.header('authorization') || ''
+  if (auth !== `Bearer ${secret}`) return c.json({ error: 'FORBIDDEN' }, 403)
+
+  const job = c.req.query('job') || ''
+  if (job !== 'weekly' && job !== 'daily') {
+    return c.json({ error: 'BAD_JOB', message: 'job must be weekly or daily' }, 400)
+  }
+
+  // 즉시 202 반환, 실제 작업은 waitUntil (리스캔은 수 분 걸릴 수 있음)
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        if (job === 'daily') {
+          const { runDailyBillingCron } = await import('../lib/billing-cron')
+          const r = await runDailyBillingCron(c.env)
+          console.log('[cron/run] daily_billing done:', JSON.stringify(r))
+        } else {
+          const { runWeeklyRescanCron } = await import('../lib/cron-handler')
+          const r = await runWeeklyRescanCron(c.env)
+          console.log('[cron/run] weekly_rescan done:', JSON.stringify(r))
+        }
+      } catch (e) {
+        console.error(`[cron/run] ${job} failed:`, e)
+      }
+    })(),
+  )
+  return c.json({ ok: true, accepted: true, job }, 202)
+})
+
+/**
+ * GET /api/cron/status
+ * 최근 크론 실행 이력 (모니터링용 — 어드민 전용)
+ */
+api.get('/cron/status', async (c) => {
+  const { getUserFromCookie } = await import('../lib/auth')
+  const viewer = await getUserFromCookie(c)
+  if (!viewer || viewer.is_admin !== 1) return c.json({ error: 'FORBIDDEN' }, 403)
+  const res = await c.env.DB.prepare(
+    `SELECT id, job_name, started_at, finished_at, status, domains_processed, domains_failed, cost_usd, error_log
+     FROM cron_runs ORDER BY id DESC LIMIT 20`,
+  ).all<any>().catch(() => ({ results: [] as any[] }))
+  return c.json({ ok: true, runs: res.results || [] })
+})
+
+/**
  * GET /api/scan/:id/prescriptions
  * 콘텐츠 처방전 — 우선순위 스코어링된 콘텐츠 제작 기회 리스트
  * 비회원: 상위 3건 / 회원(유료·본인): 전체

@@ -1,0 +1,12 @@
+{
+  "name": "patientrank-cron",
+  "main": "index.js",
+  "compatibility_date": "2026-04-13",
+  "triggers": {
+    "crons": ["0 21 * * SUN", "0 21 * * *"]
+  },
+  "vars": {
+    "APP_URL": "https://patientrank.kr"
+  }
+  // CRON_SECRET은 wrangler secret put으로 주입
+}

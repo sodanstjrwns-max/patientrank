@@ -9,6 +9,7 @@ import { runScan } from './scan-service'
 import { generateActionGuide, saveActionGuide } from './ai-action-guide'
 import { getWeeklyDelta } from './snapshot-service'
 import { sendWeeklyReport } from './kakao-notify'
+import { generatePrescriptions } from './content-prescription'
 
 export async function runWeeklyRescanCron(env: Bindings): Promise<{
   domains_processed: number
@@ -58,6 +59,7 @@ export async function runWeeklyRescanCron(env: Bindings): Promise<{
       let primaryDelta: any = null
       let primaryDomain = ''
       let primaryScanId = 0
+      let primaryTopRx = '' // 이번 주 1순위 콘텐츠 처방
 
       for (let i = 0; i < scansList.length; i++) {
         const s = scansList[i]
@@ -76,6 +78,19 @@ export async function runWeeklyRescanCron(env: Bindings): Promise<{
             try {
               primaryDelta = await getWeeklyDelta(env, summary.domain)
             } catch (e) { /* 첫 스캔이면 delta 없음 */ }
+
+            // 콘텐츠 처방전: 1순위 처방을 카카오 리포트에 포함
+            try {
+              const rx = await generatePrescriptions(env, summary, { limit: 3, userId: user.id })
+              if (rx.prescriptions.length > 0) {
+                const top = rx.prescriptions[0]
+                primaryTopRx = `'${top.keyword}' — ${top.headline}`
+                // 카카오 변수 길이 안전한도 (알림톡 변수 최대 길이 대비)
+                if (primaryTopRx.length > 80) primaryTopRx = primaryTopRx.slice(0, 77) + '...'
+              }
+            } catch (rxErr: any) {
+              console.error(`Prescription failed for ${s.url}:`, rxErr.message)
+            }
           }
 
           // 도메인 평가가 있으면 AI 가이드도 생성 (Pro/Agency만)
@@ -121,6 +136,7 @@ export async function runWeeklyRescanCron(env: Bindings): Promise<{
             score_change: scoreChange,
             top10_change: top10Change,
             result_url: resultUrl,
+            top_rx: primaryTopRx || undefined,
           })
           if (kakaoRes.success) kakaoSent++
           else kakaoFailed++

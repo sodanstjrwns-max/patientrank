@@ -768,6 +768,87 @@ app.get('/payment/fail', (c) => {
   return c.html(<PaymentFailPage code={code} message={message} />)
 })
 
+// ===================================================================
+// 토스페이먼츠 웹훅 — 카드사/토스 측 상태 변경(취소·환불·실패) DB 동기화
+// 등록: 토스 개발자센터 > 웹훅 > https://patientrank.kr/api/webhook/toss
+// 검증: 이벤트를 신뢰하지 않고 paymentKey로 토스 API 재조회 (위조 방지)
+// ===================================================================
+app.post('/api/webhook/toss', async (c) => {
+  let body: any
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ ok: false, error: 'INVALID_JSON' }, 400)
+  }
+
+  // 토스 웹훅 페이로드: { eventType, createdAt, data: { paymentKey, orderId, status, ... } }
+  const eventType = String(body?.eventType || '')
+  const data = body?.data || {}
+  const paymentKey = String(data?.paymentKey || '')
+  const orderId = String(data?.orderId || '')
+
+  console.log(`[toss-webhook] ${eventType} order=${orderId}`)
+  if (!paymentKey && !orderId) return c.json({ ok: true, skipped: 'no identifiers' })
+
+  const secretKey = (c.env as any).TOSS_SECRET_KEY
+  if (!secretKey) return c.json({ ok: false, error: 'NOT_CONFIGURED' }, 503)
+
+  try {
+    // 위조 방지: 웹훅 내용을 믿지 않고 토스 API에서 결제 상태 재조회
+    const lookupUrl = paymentKey
+      ? `https://api.tosspayments.com/v1/payments/${paymentKey}`
+      : `https://api.tosspayments.com/v1/payments/orders/${orderId}`
+    const res = await fetch(lookupUrl, {
+      headers: { Authorization: 'Basic ' + btoa(secretKey + ':') },
+    })
+    if (!res.ok) {
+      console.error(`[toss-webhook] lookup failed ${res.status}`)
+      return c.json({ ok: false, error: 'LOOKUP_FAILED' }, 502)
+    }
+    const payment: any = await res.json()
+    const tossStatus = String(payment?.status || '')
+    const verifiedOrderId = String(payment?.orderId || orderId)
+
+    // 상태 매핑 (내부 표준: paid / canceled / failed)
+    let internal: string | null = null
+    if (tossStatus === 'DONE') internal = 'paid'
+    else if (tossStatus === 'CANCELED' || tossStatus === 'PARTIAL_CANCELED') internal = 'canceled'
+    else if (['ABORTED', 'EXPIRED'].includes(tossStatus)) internal = 'failed'
+    if (!internal) return c.json({ ok: true, skipped: `unhandled status ${tossStatus}` })
+
+    if (internal === 'canceled') {
+      const cancels = Array.isArray(payment?.cancels) ? payment.cancels : []
+      const refundTotal = cancels.reduce((s: number, x: any) => s + Number(x?.cancelAmount || 0), 0)
+      const lastReason = cancels.length ? String(cancels[cancels.length - 1]?.cancelReason || '') : ''
+      await c.env.DB.prepare(
+        `UPDATE payments SET status = 'canceled', refunded_at = CURRENT_TIMESTAMP,
+           refund_amount_krw = ?, refund_reason = ?, raw_response = ?
+         WHERE toss_order_id = ?`,
+      ).bind(refundTotal, lastReason.slice(0, 200), JSON.stringify(payment).slice(0, 8000), verifiedOrderId).run()
+
+      // 전액 취소면 해당 구독 past_due 처리 (다음 빌링 크론이 재청구/만료 판단)
+      const payRow = await c.env.DB.prepare(
+        `SELECT user_id, subscription_id, amount_krw FROM payments WHERE toss_order_id = ?`,
+      ).bind(verifiedOrderId).first<any>()
+      if (payRow?.subscription_id && refundTotal >= Number(payRow.amount_krw || 0)) {
+        await c.env.DB.prepare(
+          `UPDATE subscriptions SET status = 'past_due', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        ).bind(payRow.subscription_id).run()
+        console.log(`[toss-webhook] subscription ${payRow.subscription_id} → past_due (full refund)`)
+      }
+    } else {
+      await c.env.DB.prepare(
+        `UPDATE payments SET status = ?, raw_response = ? WHERE toss_order_id = ?`,
+      ).bind(internal, JSON.stringify(payment).slice(0, 8000), verifiedOrderId).run()
+    }
+
+    return c.json({ ok: true, order_id: verifiedOrderId, status: internal })
+  } catch (e: any) {
+    console.error('[toss-webhook] error:', e)
+    return c.json({ ok: false, error: e.message }, 500)
+  }
+})
+
 app.notFound((c) =>
   c.html(
     <Layout title="404 · Patient Rank">
