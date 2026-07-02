@@ -13,10 +13,10 @@ export interface DfsCreds {
 
 function authHeader(creds: DfsCreds): string {
   const raw = `${creds.login}:${creds.password}`
-  // btoa는 Cloudflare Workers 런타임에서 지원됨
+  // btoa는 Cloudflare Workers 런타임에서 지원됨 (Node 폴백은 globalThis 경유로 타입 오류 회피)
   const b64 = typeof btoa !== 'undefined'
     ? btoa(raw)
-    : Buffer.from(raw, 'utf-8').toString('base64')
+    : (globalThis as any).Buffer.from(raw, 'utf-8').toString('base64')
   return 'Basic ' + b64
 }
 
@@ -112,9 +112,11 @@ export async function fetchCompetitorKeywordGap(
     language_name: 'Korean',
     intersections: false,        // 경쟁사만 랭크하는 키워드 (우리 아님)
     limit,
-    order_by: ['first_domain_serp_element.serp_item.etv,desc'],
+    // 공식 문서 기준 필드 경로: first_domain_serp_element.etv / .rank_group
+    // (기존 .serp_item.* 경로는 40501 Invalid Field 에러 발생 → 키워드 갭 분석 전체 실패)
+    order_by: ['first_domain_serp_element.etv,desc'],
     filters: [
-      ['first_domain_serp_element.serp_item.rank_group', '<=', 30],
+      ['first_domain_serp_element.rank_group', '<=', 30],
     ],
   }]
 
@@ -142,8 +144,9 @@ export async function fetchCompetitorKeywordGap(
   const rows: KeywordGapRow[] = items.map(it => {
     const kd = it?.keyword_data ?? {}
     const kwInfo = kd?.keyword_info ?? {}
-    const first = it?.first_domain_serp_element?.serp_item ?? {}
-    const second = it?.second_domain_serp_element?.serp_item ?? null
+    // domain_intersection 응답은 serp_item 래퍼 없이 필드가 바로 노출됨 (ranked_keywords와 다름)
+    const first = it?.first_domain_serp_element ?? {}
+    const second = it?.second_domain_serp_element ?? null
     return {
       keyword: String(kd?.keyword ?? ''),
       search_volume: Number(kwInfo?.search_volume ?? 0),

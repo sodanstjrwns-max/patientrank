@@ -164,9 +164,9 @@ async function checkLongtailAuth(c: any, scanId: number) {
   if (!viewer) {
     return { ok: false as const, status: 401, body: { error: 'AUTH_REQUIRED', message: '롱테일 키워드 발견은 로그인 후 이용 가능합니다' } }
   }
-  const scan = await c.env.DB.prepare(
+  const scan: any = await c.env.DB.prepare(
     `SELECT id, url, user_id FROM scans WHERE id = ?`
-  ).bind(scanId).first<any>()
+  ).bind(scanId).first()
   if (!scan) return { ok: false as const, status: 404, body: { error: 'NOT_FOUND' } }
 
   const isPrivileged = viewer.is_admin === 1 || viewer.plan !== 'free'

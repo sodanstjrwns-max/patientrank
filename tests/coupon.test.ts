@@ -7,7 +7,7 @@ function mockEnv(couponRow: any) {
   const run = vi.fn(async () => ({ meta: {} }))
   const first = vi.fn(async () => couponRow)
   const bind = vi.fn(() => ({ first, run }))
-  const prepare = vi.fn(() => ({ bind }))
+  const prepare = vi.fn((_sql: string) => ({ bind }))
   return { env: { DB: { prepare } } as any, prepare, bind, first, run }
 }
 

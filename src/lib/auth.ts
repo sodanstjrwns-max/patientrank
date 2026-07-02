@@ -64,7 +64,7 @@ export async function createSession(c: Context<{ Bindings: Bindings }>, user: Au
 /**
  * 쿠키에서 세션 읽기 → user 반환
  */
-export async function getUserFromCookie(c: Context<{ Bindings: Bindings }>): Promise<AuthUser | null> {
+export async function getUserFromCookie(c: Context<any>): Promise<AuthUser | null> {
   const token = getCookie(c, COOKIE_NAME)
   if (!token) return null
   const secret = requireJwtSecret(c.env)
@@ -72,12 +72,12 @@ export async function getUserFromCookie(c: Context<{ Bindings: Bindings }>): Pro
   if (!payload) return null
 
   // 세션 revoke/만료 체크
-  const sess = await c.env.DB.prepare(
+  const sess: any = await (c.env as Bindings).DB.prepare(
     `SELECT s.id, s.revoked_at, s.expires_at,
             u.id as user_id, u.email, u.name, u.clinic_name, u.specialty, u.plan, u.is_admin, u.plan_ends_at
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.id = ? LIMIT 1`
-  ).bind(payload.jti).first<any>()
+  ).bind(payload.jti).first()
   if (!sess) return null
   if (sess.revoked_at) return null
   if (new Date(sess.expires_at).getTime() < Date.now()) return null

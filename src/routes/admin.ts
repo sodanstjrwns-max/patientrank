@@ -1,9 +1,9 @@
 // 어드민 API 라우트 (통계, 스캔/리드/유저 조회)
 import { Hono } from 'hono'
 import type { Bindings } from '../lib/types'
-import { getUserFromCookie } from '../lib/auth'
+import { getUserFromCookie, type AuthUser } from '../lib/auth'
 
-const admin = new Hono<{ Bindings: Bindings }>()
+const admin = new Hono<{ Bindings: Bindings; Variables: { user: AuthUser } }>()
 
 /**
  * 어드민 미들웨어: is_admin=1 아니면 403

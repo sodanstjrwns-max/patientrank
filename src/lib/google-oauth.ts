@@ -191,7 +191,7 @@ export async function upsertGoogleUser(
     clinic_name: null,
     specialty: null,
     plan: 'free' as const,
-    is_admin: 0,
+    is_admin: 0 as const,
     plan_ends_at: null,
   }
 }
@@ -204,7 +204,7 @@ function normalizeUser(row: any) {
     clinic_name: row.clinic_name,
     specialty: row.specialty,
     plan: row.plan || 'free',
-    is_admin: row.is_admin ? 1 : 0,
+    is_admin: (row.is_admin ? 1 : 0) as 0 | 1,
     plan_ends_at: row.plan_ends_at,
   }
 }

@@ -485,7 +485,7 @@ app.get('/dashboard/competitors', async (c) => {
 
   return c.html(
     <CompetitorsPage
-      user={{ id: user.id, email: user.email, name: user.name, plan: user.plan }}
+      user={{ id: user.id, email: user.email, name: user.name || user.email, plan: user.plan }}
       competitors={competitors}
       myDomain={myDomain}
     />,
@@ -574,7 +574,7 @@ app.get('/checkout', async (c) => {
     return c.redirect('/pricing')
   }
   const basePrice = PLAN_PRICES[planRaw]
-  let finalPrice = basePrice
+  let finalPrice: number = basePrice
   let discountRate = 0
   const couponCode = (c.req.query('coupon') || '').toUpperCase()
 
@@ -642,7 +642,7 @@ app.post('/api/payment/init', async (c) => {
       return c.json({ error: '잘못된 플랜' }, 400)
     }
     const basePrice = PLAN_PRICES[plan]
-    let finalPrice = basePrice
+    let finalPrice: number = basePrice
     if (coupon) {
       const v = await validateCoupon(c.env, coupon, basePrice)
       if (v.valid) finalPrice = v.final_price
@@ -677,7 +677,7 @@ app.get('/payment/success', async (c) => {
 
     // 2) 가격 재계산 (보안: 클라이언트 신뢰 금지)
     const basePrice = PLAN_PRICES[planRaw]
-    let finalPrice = basePrice
+    let finalPrice: number = basePrice
     let discountRate = 0
     if (couponCode) {
       const v = await validateCoupon(c.env, couponCode, basePrice)

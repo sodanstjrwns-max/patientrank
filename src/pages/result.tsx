@@ -443,10 +443,10 @@ export const ResultPage: FC<{
                     {weeklyDelta.previous ? (
                       <div class="grid grid-cols-2 gap-3">
                         {[
-                          { label: 'TOP 3', delta: weeklyDelta.delta.top3, suffix: '개' },
-                          { label: 'TOP 10', delta: weeklyDelta.delta.top10, suffix: '개' },
-                          { label: 'TOP 30', delta: weeklyDelta.delta.top30, suffix: '개' },
-                          { label: 'DR', delta: weeklyDelta.delta.dr, suffix: '' },
+                          { label: 'TOP 3', delta: weeklyDelta.delta.top3_count, suffix: '개' },
+                          { label: 'TOP 10', delta: weeklyDelta.delta.top10_count, suffix: '개' },
+                          { label: 'TOP 30', delta: weeklyDelta.delta.top30_count, suffix: '개' },
+                          { label: 'DR', delta: weeklyDelta.delta.domain_rating, suffix: '' },
                         ].map((m) => {
                           const isUp = m.delta > 0
                           const isDown = m.delta < 0
@@ -502,7 +502,7 @@ export const ResultPage: FC<{
               )}
 
               {/* ---------- AI 액션 가이드 카드 ---------- */}
-              {actionGuide && actionGuide.actions && actionGuide.actions.length > 0 && (
+              {actionGuide && actionGuide.this_week_actions && actionGuide.this_week_actions.length > 0 && (
                 <div class="bento-card rounded-3xl p-7 relative overflow-hidden group">
                   <div class="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-25 group-hover:opacity-40 transition-opacity"
                        style="background: radial-gradient(circle, #0066FF 0%, transparent 70%); filter: blur(40px);"></div>
@@ -522,24 +522,30 @@ export const ResultPage: FC<{
                       </span>
                     </div>
 
-                    {actionGuide.summary && (
-                      <div class="mb-4 p-3.5 rounded-2xl bg-slate-950/40 border border-white/10 text-sm text-white/80 leading-relaxed">
-                        <i class="fas fa-quote-left text-brand-300/40 text-xs mr-1.5"></i>
-                        {actionGuide.summary}
+                    {(actionGuide.top_strength || actionGuide.top_weakness) && (
+                      <div class="mb-4 p-3.5 rounded-2xl bg-slate-950/40 border border-white/10 text-sm text-white/80 leading-relaxed space-y-1.5">
+                        {actionGuide.top_strength && (
+                          <div><i class="fas fa-thumbs-up text-emerald-300/60 text-xs mr-1.5"></i>{actionGuide.top_strength}</div>
+                        )}
+                        {actionGuide.top_weakness && (
+                          <div><i class="fas fa-triangle-exclamation text-amber-300/60 text-xs mr-1.5"></i>{actionGuide.top_weakness}</div>
+                        )}
                       </div>
                     )}
 
                     <div class="space-y-3">
-                      {actionGuide.actions.slice(0, 3).map((a: any, i: number) => {
+                      {actionGuide.this_week_actions.slice(0, 3).map((a: any, i: number) => {
                         const priorityColor =
-                          a.priority === 'high' ? 'bg-rose-500/15 border-rose-400/30 text-rose-300'
-                          : a.priority === 'medium' ? 'bg-amber-500/15 border-amber-400/30 text-amber-300'
+                          a.priority === 1 ? 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                          : a.priority === 2 ? 'bg-amber-500/15 border-amber-400/30 text-amber-300'
                           : 'bg-white/5 border-white/15 text-white/70'
+                        const priorityLabel = a.priority === 1 ? '긴급' : a.priority === 2 ? '중요' : '권장'
                         const catIcon =
                           a.category === 'content' ? 'fa-file-pen'
                           : a.category === 'technical' ? 'fa-gear'
                           : a.category === 'backlink' ? 'fa-link'
-                          : a.category === 'keyword' ? 'fa-key'
+                          : a.category === 'gsc' ? 'fa-magnifying-glass-chart'
+                          : a.category === 'local' ? 'fa-location-dot'
                           : 'fa-bullseye'
                         return (
                           <div class="p-4 rounded-2xl bg-slate-950/40 border border-white/10 backdrop-blur-sm hover:border-brand/30 transition-colors">
@@ -552,10 +558,12 @@ export const ResultPage: FC<{
                                   <span class="text-white/40 font-mono text-xs">0{i + 1}</span>
                                   <span class="font-extrabold text-white text-[15px] leading-tight">{a.title}</span>
                                   <span class={`text-[9px] px-1.5 py-0.5 rounded-md border font-bold uppercase tracking-wider ${priorityColor}`}>
-                                    {a.priority}
+                                    {priorityLabel}
                                   </span>
                                 </div>
-                                <div class="text-[13px] text-white/70 leading-relaxed mb-2">{a.description}</div>
+                                <div class="text-[13px] text-white/70 leading-relaxed mb-2">
+                                  {a.why}{a.how ? ` — ${a.how}` : ''}
+                                </div>
                                 <div class="flex items-center gap-2 flex-wrap">
                                   {a.patient_funnel_stage && (
                                     <span class="text-[10px] px-2 py-0.5 rounded-md bg-brand/10 border border-brand/20 text-brand-200 font-bold">
@@ -567,9 +575,14 @@ export const ResultPage: FC<{
                                       <i class="fas fa-chart-line mr-1 text-[9px]"></i>{a.expected_impact}
                                     </span>
                                   )}
-                                  {a.effort && (
+                                  {a.estimated_time && (
                                     <span class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 font-mono">
-                                      <i class="far fa-clock mr-1 text-[9px]"></i>{a.effort}
+                                      <i class="far fa-clock mr-1 text-[9px]"></i>{a.estimated_time}
+                                    </span>
+                                  )}
+                                  {a.estimated_cost && (
+                                    <span class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/60 font-mono">
+                                      <i class="fas fa-coins mr-1 text-[9px]"></i>{a.estimated_cost}
                                     </span>
                                   )}
                                 </div>
@@ -581,7 +594,7 @@ export const ResultPage: FC<{
                     </div>
 
                     <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10px] text-white/40 font-mono">
-                      <span><i class="fas fa-robot mr-1"></i>{actionGuide.model || 'gpt-5.5'}</span>
+                      <span><i class="fas fa-robot mr-1"></i>{actionGuide.model_used || 'gpt-5.5'}</span>
                       <span>생성: {(actionGuide.generated_at || '').slice(0, 10)}</span>
                     </div>
                   </div>
