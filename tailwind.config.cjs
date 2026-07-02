@@ -1,4 +1,9 @@
-tailwind.config = {
+/** Tailwind v3 빌드타임 설정 — 기존 CDN tw-config.js 테마를 그대로 포팅 */
+module.exports = {
+  content: [
+    './src/**/*.{ts,tsx}',
+    './public/static/*.js', // 프론트 JS가 동적으로 붙이는 클래스도 스캔
+  ],
   theme: {
     extend: {
       colors: {
@@ -63,25 +68,29 @@ tailwind.config = {
         'glow-accent': '0 20px 60px -15px rgba(0, 208, 132, 0.35)',
         'glow-iris': '0 20px 60px -15px rgba(124, 92, 255, 0.4)',
         'glow-accent-lg': '0 30px 80px -20px rgba(0, 208, 132, 0.5), 0 10px 30px -10px rgba(0, 208, 132, 0.3)',
-        'card': '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04)',
+        card: '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04)',
         'card-hover': '0 8px 32px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04)',
         'inset-glow': 'inset 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.15)',
-        'premium': '0 50px 100px -20px rgba(15, 23, 42, 0.25), 0 30px 60px -30px rgba(0, 102, 255, 0.3)',
+        premium: '0 50px 100px -20px rgba(15, 23, 42, 0.25), 0 30px 60px -30px rgba(0, 102, 255, 0.3)',
       },
       backgroundImage: {
-        'mesh-hero': 'radial-gradient(at 27% 37%, hsla(215,98%,61%,0.18) 0px, transparent 50%), radial-gradient(at 97% 21%, hsla(160,98%,40%,0.14) 0px, transparent 50%), radial-gradient(at 52% 99%, hsla(217,97%,72%,0.12) 0px, transparent 50%), radial-gradient(at 10% 29%, hsla(256,96%,67%,0.10) 0px, transparent 50%)',
-        'mesh-dark': 'radial-gradient(at 20% 30%, hsla(215,98%,61%,0.25) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(160,98%,40%,0.20) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(280,96%,67%,0.15) 0px, transparent 50%)',
-        'grid-light': 'linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px)',
-        'aurora': 'conic-gradient(from 180deg at 50% 50%, #0066FF 0deg, #7C5CFF 90deg, #00D084 180deg, #7AA6FF 270deg, #0066FF 360deg)',
+        'mesh-hero':
+          'radial-gradient(at 27% 37%, hsla(215,98%,61%,0.18) 0px, transparent 50%), radial-gradient(at 97% 21%, hsla(160,98%,40%,0.14) 0px, transparent 50%), radial-gradient(at 52% 99%, hsla(217,97%,72%,0.12) 0px, transparent 50%), radial-gradient(at 10% 29%, hsla(256,96%,67%,0.10) 0px, transparent 50%)',
+        'mesh-dark':
+          'radial-gradient(at 20% 30%, hsla(215,98%,61%,0.25) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(160,98%,40%,0.20) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(280,96%,67%,0.15) 0px, transparent 50%)',
+        'grid-light':
+          'linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px)',
+        aurora:
+          'conic-gradient(from 180deg at 50% 50%, #0066FF 0deg, #7C5CFF 90deg, #00D084 180deg, #7AA6FF 270deg, #0066FF 360deg)',
       },
       animation: {
         'fade-up': 'fadeUp 0.6s ease-out',
         'pulse-soft': 'pulseSoft 3s ease-in-out infinite',
-        'shimmer': 'shimmer 2.5s linear infinite',
-        'tick': 'tick 0.6s ease-out',
-        'float': 'float 6s ease-in-out infinite',
+        shimmer: 'shimmer 2.5s linear infinite',
+        tick: 'tick 0.6s ease-out',
+        float: 'float 6s ease-in-out infinite',
         'aurora-spin': 'auroraSpin 8s linear infinite',
-        'breathe': 'breathe 4s ease-in-out infinite',
+        breathe: 'breathe 4s ease-in-out infinite',
         'slide-in-right': 'slideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
         'drop-in': 'dropIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         'gradient-x': 'gradientX 6s ease infinite',
@@ -98,6 +107,7 @@ tailwind.config = {
         dropIn: { '0%': { opacity: '0', transform: 'translateY(-30px) scale(0.9)' }, '100%': { opacity: '1', transform: 'translateY(0) scale(1)' } },
         gradientX: { '0%,100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
       },
-    }
-  }
+    },
+  },
+  plugins: [],
 }

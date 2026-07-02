@@ -1560,7 +1560,7 @@ export const ResultPage: FC<{
             {!scan.is_gated && (
               <div
                 id="gsc-card"
-                class="mt-8 relative overflow-hidden rounded-3xl border-2 border-amber-400/30 p-7 md:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950/40"
+                class="mt-8 relative overflow-hidden rounded-3xl border-2 border-amber-400/30 p-7 md:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-900/40"
                 data-scan-id={scan.scanId}
                 data-authed={viewer ? '1' : '0'}
                 style="box-shadow: 0 30px 80px -20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.08);">

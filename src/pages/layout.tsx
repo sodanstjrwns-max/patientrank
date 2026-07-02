@@ -33,9 +33,8 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
           href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css"
           rel="stylesheet"
         />
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="/static/tw-config.js?v=4"></script>
-        <link rel="stylesheet" href="/static/app.css?v=4" />
+        <link rel="stylesheet" href="/static/tailwind.css?v=5" />
+        <link rel="stylesheet" href="/static/app.css?v=5" />
       </head>
       <body class="font-sans bg-white text-slate-900 antialiased">
         <div id="scroll-progress" class="scroll-progress"></div>
