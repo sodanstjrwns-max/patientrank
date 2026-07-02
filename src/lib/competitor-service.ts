@@ -21,13 +21,14 @@ export function normalizeDomain(input: string): string {
  * competitors 페이지 / 경쟁사 추가 API 공용
  */
 export async function getLatestUserDomain(env: Bindings, userId: number): Promise<string | null> {
+  // 주의: runScan은 scans.domain_id를 채우지 않고 scans.url에 도메인 문자열을 저장한다.
+  // (기존 domains 조인 버전은 domain_id가 항상 NULL이라 경쟁사 추가가 영구 실패했음 — 2026-07 수정)
   const row = await env.DB.prepare(
-    `SELECT d.domain
-       FROM scans s LEFT JOIN domains d ON d.id = s.domain_id
-       WHERE s.user_id = ? AND d.domain IS NOT NULL
-       ORDER BY s.created_at DESC LIMIT 1`,
-  ).bind(userId).first<{ domain: string }>()
-  return row?.domain || null
+    `SELECT url FROM scans
+       WHERE user_id = ? AND url IS NOT NULL AND url != '' AND status = 'done'
+       ORDER BY created_at DESC LIMIT 1`,
+  ).bind(userId).first<{ url: string }>()
+  return row?.url || null
 }
 
 /**
