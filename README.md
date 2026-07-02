@@ -120,6 +120,12 @@
 3. 이메일 입력 → 전체 키워드 공개 / 로그인 → 롱테일 스캔
 4. Pro 플랜 → GSC 연동으로 "놓친 키워드" 회수 + AI 액션 가이드 + 주간 카카오 리포트
 
+## Pre-Launch Final QA (2026-07-02)
+- ✅ 실배포 전 최종 점검 완료: E2E 정상 플로우 16종 + 예외 입력/경계값 8종 + 권한 침범 8종 + 동시성 3종 + 브라우저 콘솔 검증 7페이지 — 전 항목 통과
+- 🐛 **경쟁사 추가 영구 실패 버그 수정**: `getLatestUserDomain()`이 항상 NULL인 `scans.domain_id` 조인에 의존 → `scans.url` 직접 조회로 변경 (`3c99575`)
+- 🧹 로컬/프로덕션 테스트 데이터 완전 삭제 검증
+- 🚀 프로덕션 재배포 (https://e19c9b6b.patientrank.pages.dev) + patientrank.kr 스모크 테스트 통과
+
 ## Recent Fixes (2026-07-01)
 - 💰 첫 결제 실청구 누락 수정 — 빌링키 발급 후 `chargeBillingKey` 즉시 호출
 - 🗃️ payments 스키마 통일 (0001 ↔ 0006 충돌 해소) + status 'paid' 정규화 (0009)
