@@ -14,10 +14,11 @@ export const LandingPage: FC = () => {
           {/* 별 그리드 (배경 깊이감) */}
           <div class="absolute inset-0 stars-grid pointer-events-none"></div>
 
-          {/* Aurora 글로우 — 마우스 따라 살짝 움직임 */}
+          {/* Aurora 글로우 — 마우스 따라 살짝 움직임 (v3: 3색) */}
           <div id="aurora-1" class="absolute top-[-200px] right-[-100px] w-[700px] h-[700px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0, 102, 255, 0.4) 0%, transparent 60%); filter: blur(80px);"></div>
           <div id="aurora-2" class="absolute top-[400px] left-[-200px] w-[600px] h-[600px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0, 208, 132, 0.3) 0%, transparent 60%); filter: blur(80px);"></div>
-          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] opacity-20 animate-aurora-spin pointer-events-none" style="background: conic-gradient(from 0deg, transparent, #0066FF, transparent, #00D084, transparent);"></div>
+          <div class="absolute top-[100px] left-[45%] w-[500px] h-[500px] rounded-full pointer-events-none animate-breathe" style="background: radial-gradient(circle, rgba(124, 92, 255, 0.25) 0%, transparent 60%); filter: blur(90px);"></div>
+          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] opacity-20 animate-aurora-spin pointer-events-none" style="background: conic-gradient(from 0deg, transparent, #0066FF, transparent, #7C5CFF, transparent, #00D084, transparent);"></div>
 
           {/* 떨어지는 광선 */}
           <div class="absolute inset-0 overflow-hidden pointer-events-none">
@@ -63,9 +64,9 @@ export const LandingPage: FC = () => {
               <h1 class="text-display-md md:text-display-xl lg:text-display-2xl tracking-[-0.05em] leading-[0.95]">
                 <span class="block text-white">광고 없이</span>
                 <span class="block">
-                  <span class="text-gradient-aurora">구글에서</span>
+                  <span class="text-gradient-dark">구글에서</span>
                 </span>
-                <span class="block text-white">1위가 되는 법.</span>
+                <span class="block text-white">1위가 되는 법<span class="text-gradient-aurora">.</span></span>
               </h1>
 
               <p class="mt-8 text-base md:text-lg lg:text-xl text-white/60 leading-relaxed max-w-2xl mx-auto font-medium">
@@ -76,16 +77,15 @@ export const LandingPage: FC = () => {
 
             {/* 글로우 인풋 박스 (다크 글래스) */}
             <form id="scan-form" class="mt-12 max-w-2xl mx-auto reveal" onsubmit="return window.__submitScan && window.__submitScan(event)">
-              <div class="input-dark-glow rounded-2xl p-2 flex flex-col md:flex-row gap-2">
+              <div class="aurora-ring input-dark-glow rounded-2xl p-2 flex flex-col md:flex-row gap-2">
                 <div class="flex-1 flex items-center gap-3 px-4">
                   <i class="fas fa-globe text-white/40"></i>
                   <input id="scan-url" type="text" autocomplete="off" autocapitalize="off" spellcheck={false} placeholder="example-hospital.com" class="w-full py-3.5 text-base md:text-lg outline-none bg-transparent text-white placeholder:text-white/30 font-medium" />
                   <i id="input-check-icon" class="fas fa-circle-check text-accent text-lg opacity-0 scale-50 transition-all duration-300"></i>
                 </div>
-                <button type="submit" class="magnetic group relative py-3.5 px-7 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 hover:shadow-glow-brand-lg text-white font-semibold text-base md:text-lg shadow-glow-brand transition-all duration-300 whitespace-nowrap overflow-hidden">
-                  <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
-                  <i class="fas fa-bolt mr-2 relative group-hover:scale-110 transition"></i>
-                  <span class="relative">10초 진단</span>
+                <button type="submit" class="magnetic btn-shine group py-3.5 px-7 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 hover:shadow-glow-brand-lg text-white font-semibold text-base md:text-lg shadow-glow-brand transition-all duration-300 whitespace-nowrap">
+                  <i class="fas fa-bolt mr-2 group-hover:scale-110 transition"></i>
+                  <span>10초 진단</span>
                 </button>
               </div>
               <div id="scan-error" class="hidden mt-3 text-sm text-rose-400 text-center"></div>
@@ -321,7 +321,7 @@ export const LandingPage: FC = () => {
         <section id="live-demo" class="relative max-w-6xl mx-auto px-5 py-20 md:py-24">
           <div class="grid lg:grid-cols-12 gap-10 items-center">
             <div class="lg:col-span-5 reveal">
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-accent-600 text-xs font-semibold">
+              <div class="eyebrow">
                 <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
                 LIVE 실제 결과
               </div>
@@ -439,7 +439,7 @@ export const LandingPage: FC = () => {
           <a id="why-us" class="absolute -top-20" aria-hidden="true"></a>
           <div class="max-w-6xl mx-auto px-5 py-20 md:py-28">
             <div class="text-center max-w-2xl mx-auto reveal">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold">
+              <div class="eyebrow">
                 <i class="fas fa-user-doctor text-[10px]"></i>
                 만든 사람
               </div>
@@ -501,8 +501,8 @@ export const LandingPage: FC = () => {
                     { icon: 'fa-heart-pulse', title: '왜 만들었나', desc: '"필요한 진료를 받지 못하는 사람이 없도록 하자". 광고비에 치이는 원장님들이 자기 환자에게 가닿기 위한 인프라를 만듭니다.' },
                     { icon: 'fa-shield-halved', title: '광고가 아닌 자산', desc: '광고는 끄면 사라지지만, SEO 1위는 자산입니다. 그래서 측정·추적·복리화가 가능한 도구를 직접 만들었습니다.' },
                   ].map((c) => (
-                    <div class="spotlight p-6 rounded-2xl bg-white border border-ink-200 shadow-card hover:shadow-card-hover card-lift">
-                      <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand flex items-center justify-center mb-4">
+                    <div class="spotlight card-v3 p-6">
+                      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-50 to-iris-500/10 text-brand flex items-center justify-center mb-4">
                         <i class={`fas ${c.icon}`}></i>
                       </div>
                       <h3 class="font-extrabold text-ink-900 text-lg">{c.title}</h3>
@@ -518,7 +518,7 @@ export const LandingPage: FC = () => {
         {/* ============== 비교표 ============== */}
         <section id="comparison" class="max-w-6xl mx-auto px-5 py-20 md:py-24">
           <div class="text-center max-w-2xl mx-auto reveal">
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">
+            <div class="eyebrow">
               <i class="fas fa-scale-balanced text-[10px]"></i>
               비교
             </div>
@@ -568,7 +568,7 @@ export const LandingPage: FC = () => {
         <section id="features" class="bg-ink-50/50 border-y border-ink-100">
           <div class="max-w-6xl mx-auto px-5 py-20 md:py-24">
             <div class="text-center max-w-2xl mx-auto reveal">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-accent-600 text-xs font-semibold">
+              <div class="eyebrow">
                 <i class="fas fa-bolt text-[10px]"></i>
                 기능
               </div>
@@ -587,7 +587,7 @@ export const LandingPage: FC = () => {
                 { icon: 'fa-link', color: 'from-rose-500 to-rose-700', title: '백링크 · 도메인 권위', desc: '어떤 사이트가 살아있는 링크로 권위를 흘려보내는지, 경쟁사는 어디서 받는지 추적.', badge: 'Pro+' },
                 { icon: 'fa-arrow-up-right-from-square', color: 'from-purple-500 to-purple-700', title: 'GSC 연동', desc: 'Google Search Console OAuth 연결. 노출됐지만 우리가 못 찾은 키워드까지 100% 캐치.', badge: 'Premium' },
               ].map((f) => (
-                <div class="spotlight group relative p-6 rounded-2xl bg-white border border-ink-200 hover:shadow-card-hover card-lift transition">
+                <div class="spotlight card-v3 group relative p-6">
                   <div class={`w-12 h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center text-white shadow-md mb-5`}>
                     <i class={`fas ${f.icon}`}></i>
                   </div>
@@ -605,7 +605,7 @@ export const LandingPage: FC = () => {
         {/* ============== 동작 원리 ============== */}
         <section id="how" class="max-w-6xl mx-auto px-5 py-20 md:py-24">
           <div class="text-center max-w-2xl mx-auto reveal">
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold">
+            <div class="eyebrow">
               <i class="fas fa-cogs text-[10px]"></i>
               동작 원리
             </div>
@@ -624,7 +624,7 @@ export const LandingPage: FC = () => {
             ].map((s, i) => (
               <div class="relative">
                 {i < 3 && <div class="hidden md:block absolute top-12 left-full w-full h-0.5 -translate-x-2 bg-gradient-to-r from-ink-200 to-transparent z-0"></div>}
-                <div class="relative p-6 rounded-2xl bg-white border border-ink-200 shadow-card card-lift">
+                <div class="card-v3 relative p-6">
                   <div class="flex items-center justify-between mb-4">
                     <span class="text-3xl font-extrabold text-ink-200 tabular-nums">{s.n}</span>
                     <span class="w-10 h-10 rounded-xl bg-brand-50 text-brand flex items-center justify-center">
@@ -660,9 +660,9 @@ export const LandingPage: FC = () => {
                 { name: 'Pro', price: 4900, early: 2450, desc: '성장 중인 병원', features: ['도메인 3개', '월 50회 조회', '경쟁사 갭 분석', '백링크 + 도메인 권위', '롱테일 200개/스캔'], cta: '시작하기', href: '/pricing', popular: true },
                 { name: 'Premium', price: 9900, early: 4950, desc: 'GSC 연동 풀패키지', features: ['도메인 5개', '무제한 조회', 'GSC OAuth 연동', '롱테일 500개/스캔', '전화 컨설팅 1회'], cta: '문의하기', href: '/pricing' },
               ].map((p: any) => (
-                <div class={`relative p-7 rounded-3xl ${p.popular ? 'border-2 border-brand bg-gradient-to-br from-white via-brand-50/40 to-white shadow-glow-brand' : 'border border-ink-200 bg-white shadow-card'} flex flex-col`}>
+                <div class={`relative p-7 rounded-3xl ${p.popular ? 'border-2 border-transparent bg-gradient-to-br from-white via-brand-50/50 to-iris-500/5 shadow-glow-brand [background-clip:padding-box] ring-2 ring-brand/60 md:scale-[1.03]' : 'card-v3'} flex flex-col`}>
                   {p.popular && (
-                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gradient-to-r from-brand to-accent text-white text-xs font-bold shadow-md whitespace-nowrap">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gradient-to-r from-brand via-iris-500 to-accent text-white text-xs font-bold shadow-md whitespace-nowrap">
                       <i class="fas fa-star mr-1"></i> 가장 인기
                     </div>
                   )}
@@ -686,7 +686,7 @@ export const LandingPage: FC = () => {
                       <li class="flex gap-2"><i class="fas fa-check-circle text-accent mt-0.5"></i><span>{f}</span></li>
                     ))}
                   </ul>
-                  <a href={p.href} class={`mt-7 block text-center py-3.5 rounded-xl font-bold text-sm transition ${p.popular ? 'bg-gradient-to-br from-brand to-brand-700 text-white hover:shadow-glow-brand' : 'bg-ink-900 text-white hover:bg-ink-800'}`}>
+                  <a href={p.href} class={`btn-shine mt-7 block text-center py-3.5 rounded-xl font-bold text-sm transition ${p.popular ? 'bg-gradient-to-br from-brand via-iris-500 to-brand-600 text-white hover:shadow-glow-brand' : 'bg-ink-900 text-white hover:bg-ink-800'}`}>
                     {p.cta}
                   </a>
                 </div>
@@ -703,7 +703,7 @@ export const LandingPage: FC = () => {
         {/* ============== FAQ ============== */}
         <section id="faq" class="max-w-4xl mx-auto px-5 py-20 md:py-24">
           <div class="text-center mb-12 reveal">
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink-100 text-ink-700 text-xs font-semibold">
+            <div class="eyebrow">
               <i class="fas fa-circle-question text-[10px]"></i>
               FAQ
             </div>
@@ -737,8 +737,10 @@ export const LandingPage: FC = () => {
         {/* ============== Final CTA ============== */}
         <section id="cta" class="relative">
           <div class="max-w-5xl mx-auto px-5 pb-20">
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-900 via-brand-900 to-ink-900 p-10 md:p-16 text-center text-white">
+            <div class="relative overflow-hidden rounded-3xl hero-dark p-10 md:p-16 text-center text-white">
+              <div class="absolute inset-0 stars-grid pointer-events-none"></div>
               <div class="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-brand blur-3xl opacity-30"></div>
+              <div class="absolute top-10 left-1/3 w-60 h-60 rounded-full bg-iris-500 blur-3xl opacity-20 animate-breathe"></div>
               <div class="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-accent blur-3xl opacity-30"></div>
               <div class="relative">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur text-xs text-white/90 mb-6">
@@ -747,13 +749,13 @@ export const LandingPage: FC = () => {
                 </div>
                 <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">
                   10초면 끝납니다.<br />
-                  <span class="text-gradient-brand">우리 병원, 진짜 몇 위</span>일까요?
+                  <span class="text-gradient-dark">우리 병원, 진짜 몇 위</span>일까요?
                 </h2>
                 <p class="mt-5 text-white/70 text-base md:text-lg">
                   카드 등록 X · 이메일 입력 X · 회원가입 X
                 </p>
-                <a href="#diagnose" class="magnetic mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-ink-900 font-extrabold text-lg shadow-glow-accent hover:scale-105 transition">
-                  <i class="fas fa-arrow-up"></i>
+                <a href="#diagnose" class="magnetic btn-shine aurora-ring mt-8 inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-white text-ink-900 font-extrabold text-lg hover:scale-105 transition">
+                  <i class="fas fa-bolt text-brand"></i>
                   무료 진단 받기
                 </a>
               </div>

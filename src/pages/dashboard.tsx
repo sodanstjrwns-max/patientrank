@@ -30,25 +30,29 @@ export const LoginPage: FC<{ error?: string; detail?: string }> = ({ error, deta
   return (
     <Layout title="로그인 · Patient Rank">
       <NavBar />
-      <main class="max-w-md mx-auto px-5 py-24">
+      <main class="relative min-h-screen hero-dark overflow-hidden pt-28 pb-20 px-5">
+        <div class="absolute inset-0 stars-grid pointer-events-none"></div>
+        <div class="absolute top-[-150px] right-[10%] w-[500px] h-[500px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(0, 102, 255, 0.35) 0%, transparent 60%); filter: blur(80px);"></div>
+        <div class="absolute bottom-[-100px] left-[5%] w-[400px] h-[400px] rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(124, 92, 255, 0.22) 0%, transparent 60%); filter: blur(80px);"></div>
+        <div class="relative max-w-md mx-auto">
         <div class="text-center mb-10">
-          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand to-brand-600 text-white shadow-lg shadow-brand/20 mb-5">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 text-white shadow-glow-brand mb-5">
             <i class="fas fa-stethoscope text-2xl"></i>
           </div>
-          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">로그인</h1>
-          <p class="mt-2.5 text-slate-600">Google 계정으로 1초 만에 시작하세요</p>
+          <h1 class="text-3xl font-extrabold text-white tracking-tight">로그인</h1>
+          <p class="mt-2.5 text-white/60">Google 계정으로 1초 만에 시작하세요</p>
         </div>
 
         {errMsg && (
-          <div class="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+          <div class="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-400/30 text-sm text-rose-300">
             <div><i class="fas fa-circle-exclamation mr-2"></i>{errMsg}</div>
             {detail && (
-              <div class="mt-2 pl-6 text-xs text-red-600/80 font-mono break-all">상세: {detail}</div>
+              <div class="mt-2 pl-6 text-xs text-rose-300/70 font-mono break-all">상세: {detail}</div>
             )}
           </div>
         )}
 
-        <div class="p-7 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="glass-dark p-7 rounded-3xl">
           {/* Google 로그인 — 단일 진입점 */}
           <a
             href="/auth/google"
@@ -62,7 +66,7 @@ export const LoginPage: FC<{ error?: string; detail?: string }> = ({ error, deta
             <span>Google 계정으로 계속하기</span>
           </a>
 
-          <ul class="mt-6 space-y-2.5 text-sm text-slate-600">
+          <ul class="mt-6 space-y-2.5 text-sm text-white/60">
             <li class="flex items-start gap-2">
               <i class="fas fa-check text-accent mt-0.5"></i>
               <span>회원가입 절차 없이 Google 계정만 있으면 즉시 사용</span>
@@ -78,9 +82,10 @@ export const LoginPage: FC<{ error?: string; detail?: string }> = ({ error, deta
           </ul>
         </div>
 
-        <p class="mt-5 text-center text-xs text-slate-400">
-          로그인 시 <a href="/terms" class="underline hover:text-slate-600">이용약관</a> 및 <a href="/privacy" class="underline hover:text-slate-600">개인정보처리방침</a>에 동의하는 것으로 간주됩니다.
+        <p class="mt-5 text-center text-xs text-white/40">
+          로그인 시 <a href="/terms" class="underline hover:text-white/70">이용약관</a> 및 <a href="/privacy" class="underline hover:text-white/70">개인정보처리방침</a>에 동의하는 것으로 간주됩니다.
         </p>
+        </div>
       </main>
       <Footer />
     </Layout>
@@ -274,7 +279,7 @@ export const DashboardPage: FC<DashboardProps> = ({ user, scans }) => {
                         class="w-full py-3.5 text-base md:text-lg outline-none bg-transparent text-white placeholder:text-white/30 font-medium" />
                     </div>
                     <button type="submit" id="scanBtn"
-                      class="magnetic group relative py-3.5 px-7 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 hover:shadow-glow-brand-lg text-white font-semibold text-base md:text-lg shadow-glow-brand transition-all duration-300 whitespace-nowrap overflow-hidden">
+                      class="magnetic group relative py-3.5 px-7 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 hover:shadow-glow-brand-lg text-white font-semibold text-base md:text-lg shadow-glow-brand transition-all duration-300 whitespace-nowrap overflow-hidden">
                       <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
                       <i class="fas fa-bolt mr-2 relative group-hover:scale-110 transition"></i>
                       <span class="relative">진단 시작</span>

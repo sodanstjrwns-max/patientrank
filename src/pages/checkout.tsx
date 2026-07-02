@@ -20,7 +20,7 @@ export const CheckoutPage: FC<{
   return (
     <Layout title={`${planLabel} 결제 — PatientRank`}>
       <NavBar />
-      <main class="min-h-screen pt-24 pb-20 px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <main class="min-h-screen pt-24 pb-20 px-4 hero-dark">
         <div class="max-w-3xl mx-auto">
           <a href="/pricing" class="inline-flex items-center gap-2 text-white/50 hover:text-white text-sm mb-6 transition-colors">
             <i class="fas fa-arrow-left"></i>
@@ -237,7 +237,7 @@ export const PaymentSuccessPage: FC<{ orderId: string; plan: string; amount: num
   return (
     <Layout title="결제 완료 — PatientRank">
       <NavBar />
-      <main class="min-h-screen pt-24 pb-20 px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <main class="min-h-screen pt-24 pb-20 px-4 hero-dark">
         <div class="max-w-2xl mx-auto">
           <div class="bento-card rounded-3xl p-10 text-center">
             <div class="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-accent mx-auto mb-6 flex items-center justify-center">
@@ -283,7 +283,7 @@ export const PaymentFailPage: FC<{ code?: string; message?: string }> = ({ code,
   return (
     <Layout title="결제 실패 — PatientRank">
       <NavBar />
-      <main class="min-h-screen pt-24 pb-20 px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <main class="min-h-screen pt-24 pb-20 px-4 hero-dark">
         <div class="max-w-xl mx-auto">
           <div class="bento-card rounded-3xl p-10 text-center">
             <div class="w-20 h-20 rounded-full bg-rose-500/15 border border-rose-400/30 mx-auto mb-6 flex items-center justify-center">

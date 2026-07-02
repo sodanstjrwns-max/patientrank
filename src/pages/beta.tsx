@@ -8,7 +8,7 @@ export const BetaPage: FC<{ alreadySignedUp?: boolean }> = ({ alreadySignedUp })
   return (
     <Layout title="PatientRank 베타 신청 — 페이션트 퍼널 수료생 50% 평생 할인" description="페이션트 퍼널 수료생 50명 한정 베타. 평생 50% 할인.">
       <NavBar />
-      <main class="min-h-screen pt-24 pb-20 px-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <main class="min-h-screen pt-24 pb-20 px-4 hero-dark">
         <div class="max-w-3xl mx-auto">
           {/* 헤더 */}
           <div class="text-center mb-10">

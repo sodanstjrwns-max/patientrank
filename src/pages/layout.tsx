@@ -76,6 +76,15 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                         950: '#020617',
                       },
                       warn: { DEFAULT: '#FF6B6B', 600: '#E05555' },
+                      iris: {
+                        DEFAULT: '#7C5CFF',
+                        200: '#C4B5FD',
+                        300: '#A78BFA',
+                        400: '#8B5CF6',
+                        500: '#7C5CFF',
+                        600: '#6D28D9',
+                        700: '#5B21B6',
+                      },
                     },
                     fontFamily: {
                       sans: ['Pretendard Variable', 'Pretendard', 'system-ui', 'sans-serif'],
@@ -91,6 +100,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                       'glow-brand': '0 20px 60px -15px rgba(0, 102, 255, 0.35)',
                       'glow-brand-lg': '0 30px 80px -20px rgba(0, 102, 255, 0.45), 0 10px 30px -10px rgba(0, 102, 255, 0.3)',
                       'glow-accent': '0 20px 60px -15px rgba(0, 208, 132, 0.35)',
+                      'glow-iris': '0 20px 60px -15px rgba(124, 92, 255, 0.4)',
                       'glow-accent-lg': '0 30px 80px -20px rgba(0, 208, 132, 0.5), 0 10px 30px -10px rgba(0, 208, 132, 0.3)',
                       'card': '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04)',
                       'card-hover': '0 8px 32px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04)',
@@ -101,7 +111,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                       'mesh-hero': 'radial-gradient(at 27% 37%, hsla(215,98%,61%,0.18) 0px, transparent 50%), radial-gradient(at 97% 21%, hsla(160,98%,40%,0.14) 0px, transparent 50%), radial-gradient(at 52% 99%, hsla(217,97%,72%,0.12) 0px, transparent 50%), radial-gradient(at 10% 29%, hsla(256,96%,67%,0.10) 0px, transparent 50%)',
                       'mesh-dark': 'radial-gradient(at 20% 30%, hsla(215,98%,61%,0.25) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(160,98%,40%,0.20) 0px, transparent 50%), radial-gradient(at 50% 100%, hsla(280,96%,67%,0.15) 0px, transparent 50%)',
                       'grid-light': 'linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px)',
-                      'aurora': 'conic-gradient(from 180deg at 50% 50%, #0066FF 0deg, #00D084 120deg, #7AA6FF 240deg, #0066FF 360deg)',
+                      'aurora': 'conic-gradient(from 180deg at 50% 50%, #0066FF 0deg, #7C5CFF 90deg, #00D084 180deg, #7AA6FF 270deg, #0066FF 360deg)',
                     },
                     animation: {
                       'fade-up': 'fadeUp 0.6s ease-out',
@@ -147,7 +157,12 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
               }
               /* 그라디언트 텍스트 */
               .text-gradient-brand {
-                background: linear-gradient(135deg, #0066FF 0%, #00D084 100%);
+                background: linear-gradient(135deg, #0066FF 0%, #7C5CFF 50%, #00D084 100%);
+                -webkit-background-clip: text; background-clip: text;
+                -webkit-text-fill-color: transparent;
+              }
+              .text-gradient-iris {
+                background: linear-gradient(135deg, #7C5CFF 0%, #0066FF 100%);
                 -webkit-background-clip: text; background-clip: text;
                 -webkit-text-fill-color: transparent;
               }
@@ -385,13 +400,14 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                 margin-left: 1px;
               }
               @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-              /* ============ 다크 프리미엄 HERO ============ */
+              /* ============ 다크 프리미엄 HERO (v3: 3색 오로라) ============ */
               .hero-dark {
                 background:
-                  radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 102, 255, 0.35), transparent 60%),
-                  radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0, 208, 132, 0.18), transparent 60%),
-                  radial-gradient(ellipse 60% 40% at 20% 70%, rgba(122, 166, 255, 0.18), transparent 60%),
-                  linear-gradient(180deg, #050816 0%, #0A0E1F 40%, #0F172A 100%);
+                  radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 102, 255, 0.38), transparent 60%),
+                  radial-gradient(ellipse 50% 35% at 85% 25%, rgba(124, 92, 255, 0.22), transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 75% 55%, rgba(0, 208, 132, 0.15), transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 15% 70%, rgba(122, 166, 255, 0.16), transparent 60%),
+                  linear-gradient(180deg, #030614 0%, #080C1E 40%, #0F172A 100%);
                 color: #F8FAFC;
               }
               .hero-dark .text-display,
@@ -409,12 +425,12 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
               }
               /* 큰 그라디언트 텍스트 (다크용) */
               .text-gradient-dark {
-                background: linear-gradient(135deg, #FFFFFF 0%, #7AA6FF 40%, #00D084 100%);
+                background: linear-gradient(135deg, #FFFFFF 0%, #A78BFA 35%, #7AA6FF 60%, #00D084 100%);
                 -webkit-background-clip: text; background-clip: text;
                 -webkit-text-fill-color: transparent;
               }
               .text-gradient-aurora {
-                background: linear-gradient(90deg, #7AA6FF 0%, #00D084 50%, #7AA6FF 100%);
+                background: linear-gradient(90deg, #7AA6FF 0%, #A78BFA 30%, #00D084 60%, #7AA6FF 100%);
                 background-size: 200% 100%;
                 -webkit-background-clip: text; background-clip: text;
                 -webkit-text-fill-color: transparent;
@@ -444,7 +460,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                 inset: 0;
                 border-radius: inherit;
                 padding: 1px;
-                background: linear-gradient(135deg, rgba(0, 102, 255, 0.4), transparent 40%, transparent 60%, rgba(0, 208, 132, 0.4));
+                background: linear-gradient(135deg, rgba(0, 102, 255, 0.45), rgba(124, 92, 255, 0.35) 35%, transparent 50%, rgba(0, 208, 132, 0.45));
                 -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
                 -webkit-mask-composite: xor; mask-composite: exclude;
                 opacity: 0; transition: opacity 0.4s;
@@ -516,6 +532,69 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
                 animation: rotateAngle 6s linear infinite;
                 z-index: -1;
               }
+              /* ============ v3 신규 유틸리티 ============ */
+              /* 섹션 eyebrow (통일된 라벨) */
+              .eyebrow {
+                display: inline-flex; align-items: center; gap: 6px;
+                padding: 5px 14px; border-radius: 999px;
+                font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+                background: linear-gradient(135deg, rgba(0,102,255,0.08), rgba(124,92,255,0.08));
+                border: 1px solid rgba(0,102,255,0.15);
+                color: #0052CC;
+              }
+              /* 프리미엄 CTA 버튼 shine */
+              .btn-shine { position: relative; overflow: hidden; }
+              .btn-shine::after {
+                content: ''; position: absolute; inset: 0;
+                background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%);
+                transform: translateX(-100%);
+                transition: transform 0.7s ease;
+              }
+              .btn-shine:hover::after { transform: translateX(100%); }
+              /* 라이트 섹션 카드 v3 (미세한 그라디언트 헤어라인) */
+              .card-v3 {
+                background: white;
+                border: 1px solid #E2E8F0;
+                border-radius: 20px;
+                transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s, border-color 0.3s;
+              }
+              .card-v3:hover {
+                transform: translateY(-4px);
+                border-color: rgba(0,102,255,0.25);
+                box-shadow: 0 20px 50px -12px rgba(0,102,255,0.12), 0 8px 24px -8px rgba(15,23,42,0.08);
+              }
+              /* 오로라 링 CTA 래퍼 */
+              .aurora-ring {
+                position: relative; border-radius: inherit;
+              }
+              .aurora-ring::before {
+                content: ''; position: absolute; inset: -2px; border-radius: inherit;
+                background: conic-gradient(from var(--angle, 0deg), #0066FF, #7C5CFF, #00D084, #7AA6FF, #0066FF);
+                animation: rotateAngle 5s linear infinite;
+                z-index: -1; filter: blur(6px); opacity: 0.7;
+              }
+              /* 내비 링크 그라디언트 언더라인 */
+              .nav-link { position: relative; }
+              .nav-link::after {
+                content: ''; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px;
+                border-radius: 2px;
+                background: linear-gradient(90deg, #0066FF, #00D084);
+                transform: scaleX(0); transform-origin: left;
+                transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+              }
+              .nav-link:hover::after { transform: scaleX(1); }
+              /* 숫자 강조 (지표) */
+              .stat-num {
+                font-variant-numeric: tabular-nums;
+                background: linear-gradient(180deg, #FFFFFF 30%, rgba(255,255,255,0.55) 100%);
+                -webkit-background-clip: text; background-clip: text;
+                -webkit-text-fill-color: transparent;
+              }
+              /* 다크 섹션 divider 글로우 */
+              .divider-glow {
+                height: 1px; border: 0;
+                background: linear-gradient(90deg, transparent, rgba(0,102,255,0.5), rgba(124,92,255,0.5), rgba(0,208,132,0.5), transparent);
+              }
               /* 미디어 쿼리 - 모션 줄임 */
               @media (prefers-reduced-motion: reduce) {
                 .serp-card, .float, .beam, .marquee, .text-gradient-animated,
@@ -537,10 +616,12 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
 }
 
 export const NavBar: FC<{ loggedIn?: boolean; dark?: boolean }> = ({ loggedIn = false, dark = true }) => (
-  <header id="navbar" class={`fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[min(96%,1180px)] rounded-2xl transition-all duration-500 ${dark ? 'bg-white/[0.04] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]' : 'bg-white/80 backdrop-blur-2xl border border-ink-200/60 shadow-card'}`}>
+  <header id="navbar" class={`fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[min(96%,1180px)] rounded-2xl transition-all duration-500 ${dark ? 'bg-[#0A0E1F]/70 backdrop-blur-2xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]' : 'bg-white/85 backdrop-blur-2xl border border-ink-200/60 shadow-card'}`}>
+    {/* 상단 헤어라인 그라디언트 */}
+    <div class="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent"></div>
     <div class="px-5 h-14 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2.5 group">
-        <span class="relative w-8 h-8 rounded-lg bg-gradient-to-br from-brand via-brand-600 to-brand-800 flex items-center justify-center text-white shadow-glow-brand group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+        <span class="relative w-8 h-8 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-700 flex items-center justify-center text-white shadow-glow-brand group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
           <i class="fas fa-arrow-trend-up text-xs"></i>
           <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent ring-2 ring-[#0A0E1F] animate-pulse"></span>
         </span>
@@ -549,20 +630,21 @@ export const NavBar: FC<{ loggedIn?: boolean; dark?: boolean }> = ({ loggedIn = 
         </span>
       </a>
       <nav class="flex items-center gap-1 md:gap-1 text-sm">
-        <a href="/#features" class={`hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-ink-600 hover:text-ink-900 hover:bg-ink-100'}`}>기능</a>
-        <a href="/#how" class={`hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-ink-600 hover:text-ink-900 hover:bg-ink-100'}`}>동작 원리</a>
-        <a href="/pricing" class={`hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-ink-600 hover:text-ink-900 hover:bg-ink-100'}`}>가격</a>
-        <a href="/blog" class={`hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-ink-600 hover:text-ink-900 hover:bg-ink-100'}`}>블로그</a>
+        <a href="/#features" class={`nav-link hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white' : 'text-ink-600 hover:text-ink-900'}`}>기능</a>
+        <a href="/#how" class={`nav-link hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white' : 'text-ink-600 hover:text-ink-900'}`}>동작 원리</a>
+        <a href="/pricing" class={`nav-link hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white' : 'text-ink-600 hover:text-ink-900'}`}>가격</a>
+        <a href="/blog" class={`nav-link hidden md:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white' : 'text-ink-600 hover:text-ink-900'}`}>블로그</a>
         <span class={`hidden md:inline w-px h-4 mx-1 ${dark ? 'bg-white/15' : 'bg-ink-200'}`}></span>
         {loggedIn ? (
-          <a href="/dashboard" class="px-3.5 py-1.5 rounded-lg bg-white text-ink-900 hover:bg-white/90 font-semibold transition">대시보드</a>
+          <a href="/dashboard" class="btn-shine px-3.5 py-1.5 rounded-lg bg-white text-ink-900 hover:bg-white/90 font-semibold transition text-xs flex items-center gap-1.5">
+            <i class="fas fa-gauge-high text-[10px]"></i>대시보드
+          </a>
         ) : (
           <>
             <a href="/login" class={`hidden sm:inline px-3 py-1.5 rounded-lg font-medium transition ${dark ? 'text-white/70 hover:text-white' : 'text-ink-700 hover:text-ink-900'}`}>로그인</a>
-            <a href="/#diagnose" class="group relative px-3.5 py-1.5 rounded-lg bg-gradient-to-br from-brand via-brand-600 to-brand-700 text-white hover:shadow-glow-brand-lg font-semibold shadow-glow-brand transition-all duration-300 flex items-center gap-1.5 overflow-hidden">
-              <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
-              <i class="fas fa-bolt text-[10px] relative"></i>
-              <span class="relative text-xs">무료 진단</span>
+            <a href="/#diagnose" class="btn-shine px-3.5 py-1.5 rounded-lg bg-gradient-to-br from-brand via-iris-500 to-brand-600 text-white hover:shadow-glow-brand-lg font-semibold shadow-glow-brand transition-all duration-300 flex items-center gap-1.5">
+              <i class="fas fa-bolt text-[10px]"></i>
+              <span class="text-xs">무료 진단</span>
             </a>
           </>
         )}
@@ -572,18 +654,20 @@ export const NavBar: FC<{ loggedIn?: boolean; dark?: boolean }> = ({ loggedIn = 
 )
 
 export const Footer: FC = () => (
-  <footer class="relative mt-24 border-t border-ink-200 bg-ink-950 text-ink-300 overflow-hidden">
-    <div class="absolute inset-0 bg-grid opacity-[0.04] pointer-events-none"></div>
-    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-brand/10 blur-3xl pointer-events-none"></div>
+  <footer class="relative mt-24 bg-ink-950 text-ink-300 overflow-hidden">
+    <div class="divider-glow"></div>
+    <div class="absolute inset-0 stars-grid opacity-40 pointer-events-none"></div>
+    <div class="absolute -top-40 left-1/4 w-[500px] h-[500px] rounded-full bg-brand/10 blur-3xl pointer-events-none"></div>
+    <div class="absolute -top-20 right-1/4 w-[400px] h-[400px] rounded-full bg-iris-500/10 blur-3xl pointer-events-none"></div>
     <div class="relative max-w-7xl mx-auto px-5 pt-16 pb-10">
       <div class="grid md:grid-cols-5 gap-10 mb-12">
         <div class="md:col-span-2">
           <div class="flex items-center gap-2.5 mb-4">
-            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-700 flex items-center justify-center text-white shadow-glow-brand">
+            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-700 flex items-center justify-center text-white shadow-glow-brand">
               <i class="fas fa-arrow-trend-up text-sm"></i>
             </span>
             <span class="font-extrabold text-white text-lg tracking-tight">
-              Patient<span class="text-gradient-brand">Rank</span>
+              Patient<span class="text-gradient-aurora">Rank</span>
             </span>
           </div>
           <p class="leading-relaxed text-ink-400 text-sm max-w-sm">

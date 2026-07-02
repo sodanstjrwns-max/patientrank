@@ -250,7 +250,7 @@ export const ResultPage: FC<{
                 <a href="/dashboard" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white text-sm font-semibold transition-all">
                   <i class="fas fa-table-columns mr-2"></i>대시보드
                 </a>
-                <a href="/#diagnose" class="group relative px-5 py-2.5 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 text-white text-sm font-bold shadow-glow-brand hover:shadow-glow-brand-lg transition-all overflow-hidden">
+                <a href="/#diagnose" class="group relative px-5 py-2.5 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 text-white text-sm font-bold shadow-glow-brand hover:shadow-glow-brand-lg transition-all overflow-hidden">
                   <i class="fas fa-rotate mr-2"></i>다른 URL 진단
                 </a>
               </div>
@@ -1869,7 +1869,7 @@ export const ResultPage: FC<{
                   type="button"
                   data-domain={scan.domain}
                   data-max-rank={maxRank === 500 ? 100 : 500}
-                  class="px-5 py-3 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 text-white text-sm font-extrabold whitespace-nowrap shadow-glow-brand hover:shadow-glow-brand-lg transition-all">
+                  class="px-5 py-3 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 text-white text-sm font-extrabold whitespace-nowrap shadow-glow-brand hover:shadow-glow-brand-lg transition-all">
                   <i class="fas fa-rotate mr-2"></i>
                   TOP {maxRank === 500 ? '100 정밀' : '500 확장'}으로 재스캔
                 </button>
@@ -1927,7 +1927,7 @@ export const ResultPage: FC<{
                     <input type="checkbox" name="kakao_opt_in" value="1" class="w-4 h-4 rounded border-white/20 bg-white/5" />
                     Patient Rank 카카오 채널 추가하고 주간 순위 알림 받기
                   </label>
-                  <button type="submit" class="md:col-span-2 py-4 rounded-xl bg-gradient-to-br from-brand via-brand-600 to-brand-700 hover:from-brand-400 hover:to-brand-600 text-white font-extrabold text-lg shadow-glow-brand-lg transition-all">
+                  <button type="submit" class="md:col-span-2 py-4 rounded-xl bg-gradient-to-br from-brand via-iris-500 to-brand-600 hover:from-brand-400 hover:to-brand-600 text-white font-extrabold text-lg shadow-glow-brand-lg transition-all">
                     <i class="fas fa-unlock mr-2"></i>전체 리포트 잠금 해제
                   </button>
                   <div id="lead-status" class="md:col-span-2 text-sm text-center text-white/70"></div>
