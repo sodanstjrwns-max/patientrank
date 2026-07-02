@@ -89,17 +89,15 @@ app.get('/result/:id', async (c) => {
   let actionGuide: any = null
   let prescriptions: any = null
   if (scan) {
-    // 콘텐츠 처방전 — 모든 방문자에게 생성 (무료는 상위 3건만 공개, 나머지 블러)
-    try {
-      prescriptions = await generatePrescriptions(c.env, scan, { limit: 10, userId: viewer?.id })
-    } catch (e) {
-      console.error('prescription generation failed:', e)
-    }
-    try {
-      weeklyDelta = await getWeeklyDelta(c.env, scan.domain)
-    } catch (e) {
-      console.error('weekly delta load failed:', e)
-    }
+    // 콘텐츠 처방전 + 주간 델타 병렬 로드 (서로 독립적 — 직렬일 이유 없음)
+    const [rxRes, deltaRes] = await Promise.allSettled([
+      generatePrescriptions(c.env, scan, { limit: 10, userId: viewer?.id }),
+      getWeeklyDelta(c.env, scan.domain),
+    ])
+    if (rxRes.status === 'fulfilled') prescriptions = rxRes.value
+    else console.error('prescription generation failed:', rxRes.reason)
+    if (deltaRes.status === 'fulfilled') weeklyDelta = deltaRes.value
+    else console.error('weekly delta load failed:', deltaRes.reason)
 
     // AI 가이드는 캐시 우선 (1주 동안 같은 스캔은 같은 가이드)
     const isPro =

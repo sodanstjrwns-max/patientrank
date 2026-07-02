@@ -219,16 +219,17 @@ export async function getScanById(
   scanId: number,
   viewerUser?: { id: number; is_admin: number; plan: string } | null,
 ): Promise<ScanSummary | null> {
-  const scan = await env.DB.prepare(
-    `SELECT id, user_id, url, keyword_count, top3_count, top10_count, top30_count, top100_count, estimated_traffic, created_at FROM scans WHERE id = ?`
-  ).bind(scanId).first<any>()
+  // 세 쿼리 모두 scanId만 필요 → 병렬 실행 (왕복 3회 → 1회)
+  const [scan, kws, lead] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id, user_id, url, keyword_count, top3_count, top10_count, top30_count, top100_count, estimated_traffic, created_at FROM scans WHERE id = ?`
+    ).bind(scanId).first<any>(),
+    env.DB.prepare(
+      `SELECT keyword, rank, search_volume, ranked_url, etv FROM keyword_snapshots WHERE scan_id = ? ORDER BY search_volume DESC, rank ASC`
+    ).bind(scanId).all<KeywordRow>(),
+    env.DB.prepare(`SELECT id FROM leads WHERE scan_id = ? LIMIT 1`).bind(scanId).first<any>(),
+  ])
   if (!scan) return null
-
-  const kws = await env.DB.prepare(
-    `SELECT keyword, rank, search_volume, ranked_url, etv FROM keyword_snapshots WHERE scan_id = ? ORDER BY search_volume DESC, rank ASC`
-  ).bind(scanId).all<KeywordRow>()
-
-  const lead = await env.DB.prepare(`SELECT id FROM leads WHERE scan_id = ? LIMIT 1`).bind(scanId).first<any>()
   const hasLead = !!lead
   const hasUser = !!scan.user_id
 
@@ -245,21 +246,20 @@ export async function getScanById(
   let longtailKeywords: LongTailKeyword[] | undefined
   let longtailMeta: LongTailMeta | undefined
   try {
-    const [bl, kwg] = await Promise.all([
+    // 백링크 + 키워드 갭 + 롱테일 KV까지 3종 병렬 (기존: KV만 직렬이었음)
+    const cacheKey = `longtail:${scan.url}:both:200`
+    const [bl, kwg, cached] = await Promise.all([
       analyzeBacklinks(env, scan.url),
       analyzeKeywordGaps(env, scan.url),
+      env.CACHE.get(cacheKey, { type: 'json' }) as Promise<{
+        keywords: LongTailKeyword[]
+        meta: LongTailMeta
+      } | null>,
     ])
     backlinkSummary = bl.summary
     backlinks = bl.links
     competitorGap = bl.gap
     keywordGaps = kwg
-
-    // 롱테일은 KV 캐시 히트 시만 읽기 (신규 스캔은 POST /api/scan/longtail 트리거)
-    const cacheKey = `longtail:${scan.url}:both:200`
-    const cached = await env.CACHE.get(cacheKey, { type: 'json' }) as {
-      keywords: LongTailKeyword[]
-      meta: LongTailMeta
-    } | null
     if (cached?.keywords) {
       longtailKeywords = cached.keywords
       longtailMeta = cached.meta

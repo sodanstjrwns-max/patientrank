@@ -744,15 +744,15 @@ export const ResultPage: FC<{
                       : k.rank <= 30 ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
                       : 'bg-white/5 border-white/10 text-white/60'
                     return (
-                      <tr class="hover:bg-white/[0.04] transition-colors kw-row">
-                        <td class="px-5 py-3.5 text-white/30 tabular-nums font-mono">{i + 1}</td>
-                        <td class="px-5 py-3.5 font-semibold text-white">{k.keyword}</td>
-                        <td class="px-5 py-3.5 text-center">
-                          <span class={`inline-flex items-center justify-center min-w-[3rem] px-2.5 py-1 rounded-lg text-xs font-extrabold border ${badge}`}>{k.rank}위</span>
+                      <tr class="row-h kw-row">
+                        <td class="td-x text-white/30 tabular-nums font-mono">{i + 1}</td>
+                        <td class="td-x font-semibold text-white">{k.keyword}</td>
+                        <td class="td-x text-center">
+                          <span class={`rk-badge ${badge}`}>{k.rank}위</span>
                         </td>
-                        <td class="px-5 py-3.5 text-right tabular-nums text-white/80 font-mono">{formatNumber(k.search_volume)}</td>
-                        <td class="px-5 py-3.5 hidden md:table-cell">
-                          <a href={k.ranked_url} target="_blank" rel="noopener" class="text-brand-300 hover:text-brand-200 hover:underline text-xs break-all">
+                        <td class="td-x text-right tabular-nums text-white/80 font-mono">{formatNumber(k.search_volume)}</td>
+                        <td class="td-x hidden md:table-cell">
+                          <a href={k.ranked_url} target="_blank" rel="noopener" class="lnk-b text-xs break-all">
                             {k.ranked_url.length > 60 ? k.ranked_url.slice(0, 60) + '...' : k.ranked_url}
                           </a>
                         </td>
@@ -761,13 +761,13 @@ export const ResultPage: FC<{
                   })}
                   {scan.is_gated && hiddenCount > 0 && hiddenKeywords.slice(0, 5).map((k, i) => (
                     <tr class="relative select-none blur-row">
-                      <td class="px-5 py-3.5 text-white/30 tabular-nums font-mono">{FREE_VISIBLE_ROWS + i + 1}</td>
-                      <td class="px-5 py-3.5 font-semibold text-white/30 blur-sm">{k.keyword}</td>
-                      <td class="px-5 py-3.5 text-center blur-sm">
+                      <td class="td-x text-white/30 tabular-nums font-mono">{FREE_VISIBLE_ROWS + i + 1}</td>
+                      <td class="td-x font-semibold text-white/30 blur-sm">{k.keyword}</td>
+                      <td class="td-x text-center blur-sm">
                         <span class="inline-block min-w-[3rem] px-2.5 py-1 rounded-lg text-xs font-extrabold bg-white/5 border border-white/10 text-white/40">{k.rank}위</span>
                       </td>
-                      <td class="px-5 py-3.5 text-right tabular-nums text-white/30 blur-sm">{formatNumber(k.search_volume)}</td>
-                      <td class="px-5 py-3.5 hidden md:table-cell text-white/30 blur-sm">••••••</td>
+                      <td class="td-x text-right tabular-nums text-white/30 blur-sm">{formatNumber(k.search_volume)}</td>
+                      <td class="td-x hidden md:table-cell text-white/30 blur-sm">••••••</td>
                     </tr>
                   ))}
                 </tbody>
@@ -992,32 +992,32 @@ export const ResultPage: FC<{
                     </thead>
                     <tbody class="divide-y divide-white/5">
                       {visibleBacklinks.map((b) => (
-                        <tr class="hover:bg-white/[0.04] transition-colors">
-                          <td class="px-5 py-3.5">
-                            <a href={b.source_url} target="_blank" rel="noopener" class="text-brand-300 hover:text-brand-200 hover:underline font-semibold">
+                        <tr class="row-h">
+                          <td class="td-x">
+                            <a href={b.source_url} target="_blank" rel="noopener" class="lnk-b font-semibold">
                               {b.source_domain}
                             </a>
                             <div class="text-[11px] text-white/30 truncate max-w-[280px] mt-0.5">{b.source_url}</div>
                           </td>
-                          <td class="px-5 py-3.5 hidden md:table-cell text-white/70 truncate max-w-[200px]" title={b.anchor}>
+                          <td class="td-x hidden md:table-cell text-white/70 truncate max-w-[200px]" title={b.anchor}>
                             {b.anchor || <span class="text-white/30">(없음)</span>}
                           </td>
-                          <td class="px-5 py-3.5 text-center">
-                            <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-lg text-xs font-extrabold border ${
+                          <td class="td-x text-center">
+                            <span class={`rk-badge rk-sm ${
                               b.domain_rank >= 70 ? 'bg-accent/20 border-accent/40 text-accent'
                               : b.domain_rank >= 50 ? 'bg-brand/20 border-brand/40 text-brand-300'
                               : b.domain_rank >= 30 ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
                               : 'bg-white/5 border-white/10 text-white/60'
                             }`}>{b.domain_rank}</span>
                           </td>
-                          <td class="px-5 py-3.5 text-center">
+                          <td class="td-x text-center">
                             {b.is_dofollow ? (
                               <span class="px-2 py-0.5 rounded-md bg-accent/15 border border-accent/30 text-accent text-[10px] font-bold">dofollow</span>
                             ) : (
                               <span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/50 text-[10px]">nofollow</span>
                             )}
                           </td>
-                          <td class="px-5 py-3.5 text-center">
+                          <td class="td-x text-center">
                             {b.is_lost ? (
                               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warn/15 border border-warn/30 text-warn text-[10px] font-bold">
                                 <i class="fas fa-link-slash"></i> lost
@@ -1032,16 +1032,16 @@ export const ResultPage: FC<{
                       ))}
                       {hiddenBacklinks.slice(0, 5).map((b) => (
                         <tr class="relative select-none">
-                          <td class="px-5 py-3.5 blur-sm">
+                          <td class="td-x blur-sm">
                             <div class="font-semibold text-white/40">{b.source_domain}</div>
                             <div class="text-[11px] text-white/20">{b.source_url}</div>
                           </td>
-                          <td class="px-5 py-3.5 hidden md:table-cell text-white/30 blur-sm">{b.anchor}</td>
-                          <td class="px-5 py-3.5 text-center blur-sm">
+                          <td class="td-x hidden md:table-cell text-white/30 blur-sm">{b.anchor}</td>
+                          <td class="td-x text-center blur-sm">
                             <span class="inline-block min-w-[2.5rem] px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-white/40">{b.domain_rank}</span>
                           </td>
-                          <td class="px-5 py-3.5 text-center blur-sm text-white/30 text-xs">••••</td>
-                          <td class="px-5 py-3.5 text-center blur-sm text-white/30 text-xs">••••</td>
+                          <td class="td-x text-center blur-sm text-white/30 text-xs">••••</td>
+                          <td class="td-x text-center blur-sm text-white/30 text-xs">••••</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1085,21 +1085,21 @@ export const ResultPage: FC<{
                       <tbody class="divide-y divide-white/5">
                         {visibleGap.map((g) => (
                           <tr class="hover:bg-amber-500/[0.04] transition-colors">
-                            <td class="px-5 py-3.5">
+                            <td class="td-x">
                               <a href={g.source_url} target="_blank" rel="noopener" class="text-brand-300 font-semibold hover:underline">
                                 {g.source_domain}
                               </a>
                               <div class="text-[11px] text-white/30 truncate max-w-[260px] mt-0.5">{g.source_url}</div>
                             </td>
-                            <td class="px-5 py-3.5 hidden md:table-cell">
+                            <td class="td-x hidden md:table-cell">
                               <div class="text-white font-semibold">{g.competitor_domain}</div>
                               <div class="text-[11px] text-white/50">DR {g.competitor_rank}</div>
                             </td>
-                            <td class="px-5 py-3.5 hidden md:table-cell text-white/70 truncate max-w-[200px]" title={g.anchor}>
+                            <td class="td-x hidden md:table-cell text-white/70 truncate max-w-[200px]" title={g.anchor}>
                               {g.anchor}
                             </td>
-                            <td class="px-5 py-3.5 text-center">
-                              <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-lg text-xs font-extrabold border ${
+                            <td class="td-x text-center">
+                              <span class={`rk-badge rk-sm ${
                                 g.source_rank >= 70 ? 'bg-accent/20 border-accent/40 text-accent'
                                 : g.source_rank >= 50 ? 'bg-brand/20 border-brand/40 text-brand-300'
                                 : 'bg-amber-500/20 border-amber-400/40 text-amber-300'
@@ -1109,12 +1109,12 @@ export const ResultPage: FC<{
                         ))}
                         {hiddenGap.slice(0, 3).map((g) => (
                           <tr class="relative select-none">
-                            <td class="px-5 py-3.5 blur-sm">
+                            <td class="td-x blur-sm">
                               <div class="font-semibold text-white/40">{g.source_domain}</div>
                             </td>
-                            <td class="px-5 py-3.5 hidden md:table-cell text-white/30 blur-sm">{g.competitor_domain}</td>
-                            <td class="px-5 py-3.5 hidden md:table-cell text-white/30 blur-sm">{g.anchor}</td>
-                            <td class="px-5 py-3.5 text-center blur-sm">
+                            <td class="td-x hidden md:table-cell text-white/30 blur-sm">{g.competitor_domain}</td>
+                            <td class="td-x hidden md:table-cell text-white/30 blur-sm">{g.anchor}</td>
+                            <td class="td-x text-center blur-sm">
                               <span class="inline-block min-w-[2.5rem] px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-white/40">{g.source_rank}</span>
                             </td>
                           </tr>
@@ -1181,24 +1181,24 @@ export const ResultPage: FC<{
                           : k.competitor_rank <= 10 ? 'bg-brand/20 border-brand/40 text-brand-300'
                           : 'bg-amber-500/20 border-amber-400/40 text-amber-300'
                         return (
-                          <tr class="hover:bg-white/[0.04] transition-colors">
-                            <td class="px-5 py-3.5 text-white/30 tabular-nums font-mono">{i + 1}</td>
-                            <td class="px-5 py-3.5 font-semibold text-white">
+                          <tr class="row-h">
+                            <td class="td-x text-white/30 tabular-nums font-mono">{i + 1}</td>
+                            <td class="td-x font-semibold text-white">
                               {k.keyword}
                               {k.our_rank && (
                                 <span class="ml-2 text-[11px] text-white/40">(우리 {k.our_rank}위)</span>
                               )}
                             </td>
-                            <td class="px-5 py-3.5 text-right tabular-nums text-white font-bold font-mono">{formatNumber(k.search_volume)}</td>
-                            <td class="px-5 py-3.5 text-center">
+                            <td class="td-x text-right tabular-nums text-white font-bold font-mono">{formatNumber(k.search_volume)}</td>
+                            <td class="td-x text-center">
                               <span class={`inline-block min-w-[2.5rem] px-2 py-0.5 rounded-lg text-xs font-extrabold border ${diffColor}`}>
                                 {k.keyword_difficulty || '-'}
                               </span>
                             </td>
-                            <td class="px-5 py-3.5 text-center">
-                              <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-lg text-xs font-extrabold border ${rankColor}`}>{k.competitor_rank}위</span>
+                            <td class="td-x text-center">
+                              <span class={`rk-badge rk-sm ${rankColor}`}>{k.competitor_rank}위</span>
                             </td>
-                            <td class="px-5 py-3.5 text-right tabular-nums text-white/60 hidden md:table-cell font-mono">
+                            <td class="td-x text-right tabular-nums text-white/60 hidden md:table-cell font-mono">
                               {k.cpc > 0 ? `$${k.cpc.toFixed(2)}` : '-'}
                             </td>
                           </tr>
@@ -1206,12 +1206,12 @@ export const ResultPage: FC<{
                       })}
                       {hiddenKwGaps.slice(0, 5).map((k, i) => (
                         <tr class="relative select-none">
-                          <td class="px-5 py-3.5 text-white/30 tabular-nums font-mono">{FREE_KWGAP_ROWS + i + 1}</td>
-                          <td class="px-5 py-3.5 font-semibold text-white/30 blur-sm">{k.keyword}</td>
-                          <td class="px-5 py-3.5 text-right blur-sm text-white/30">{formatNumber(k.search_volume)}</td>
-                          <td class="px-5 py-3.5 text-center blur-sm">••</td>
-                          <td class="px-5 py-3.5 text-center blur-sm">••</td>
-                          <td class="px-5 py-3.5 text-right blur-sm hidden md:table-cell text-white/30">••••</td>
+                          <td class="td-x text-white/30 tabular-nums font-mono">{FREE_KWGAP_ROWS + i + 1}</td>
+                          <td class="td-x font-semibold text-white/30 blur-sm">{k.keyword}</td>
+                          <td class="td-x text-right blur-sm text-white/30">{formatNumber(k.search_volume)}</td>
+                          <td class="td-x text-center blur-sm">••</td>
+                          <td class="td-x text-center blur-sm">••</td>
+                          <td class="td-x text-right blur-sm hidden md:table-cell text-white/30">••••</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1508,23 +1508,23 @@ export const ResultPage: FC<{
                                 : 'bg-brand/15 border-brand/30 text-brand-300'
                             const sourceLabel = k.source === 'sitemap' ? 'Sitemap' : '지역×진료'
                             return (
-                              <tr class="hover:bg-white/[0.04] transition-colors">
-                                <td class="px-5 py-3.5 text-white/30 tabular-nums font-mono">{i + 1}</td>
-                                <td class="px-5 py-3.5 font-semibold text-white">{k.keyword}</td>
-                                <td class="px-5 py-3.5 text-center">
-                                  <span class={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-lg text-xs font-extrabold border ${rankBadge}`}>
+                              <tr class="row-h">
+                                <td class="td-x text-white/30 tabular-nums font-mono">{i + 1}</td>
+                                <td class="td-x font-semibold text-white">{k.keyword}</td>
+                                <td class="td-x text-center">
+                                  <span class={`rk-badge rk-sm ${rankBadge}`}>
                                     {k.rank}위
                                   </span>
                                 </td>
-                                <td class="px-5 py-3.5 text-right tabular-nums text-white/80 hidden md:table-cell font-mono">
+                                <td class="td-x text-right tabular-nums text-white/80 hidden md:table-cell font-mono">
                                   {k.search_volume ? formatNumber(k.search_volume) : <span class="text-white/30 text-xs">미측정</span>}
                                 </td>
-                                <td class="px-5 py-3.5 text-center hidden md:table-cell">
+                                <td class="td-x text-center hidden md:table-cell">
                                   <span class={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${sourceBadge}`}>{sourceLabel}</span>
                                 </td>
-                                <td class="px-5 py-3.5 hidden lg:table-cell">
+                                <td class="td-x hidden lg:table-cell">
                                   {k.ranked_url ? (
-                                    <a href={k.ranked_url} target="_blank" rel="noopener" class="text-brand-300 hover:text-brand-200 hover:underline text-xs break-all">
+                                    <a href={k.ranked_url} target="_blank" rel="noopener" class="lnk-b text-xs break-all">
                                       {k.ranked_url.length > 50 ? k.ranked_url.slice(0, 50) + '...' : k.ranked_url}
                                     </a>
                                   ) : (
@@ -1613,14 +1613,14 @@ export const ResultPage: FC<{
                       <button
                         id="gsc-connect-btn"
                         type="button"
-                        class="group relative hidden px-5 py-3.5 rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 transition-all overflow-hidden">
+                        class="group relative hidden td-x rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 transition-all overflow-hidden">
                         <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
                         <span class="relative"><i class="fab fa-google mr-2"></i>GSC 계정 연결</span>
                       </button>
                       <button
                         id="gsc-sync-btn"
                         type="button"
-                        class="hidden px-5 py-3.5 rounded-xl bg-gradient-to-br from-emerald-400 to-accent hover:from-emerald-300 hover:to-accent text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-emerald-500/40 transition-all">
+                        class="hidden td-x rounded-xl bg-gradient-to-br from-emerald-400 to-accent hover:from-emerald-300 hover:to-accent text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-emerald-500/40 transition-all">
                         <i class="fas fa-sync mr-2"></i>키워드 동기화
                       </button>
                       <button
@@ -1633,7 +1633,7 @@ export const ResultPage: FC<{
                       <a
                         id="gsc-upgrade-btn"
                         href="/pricing"
-                        class="group relative hidden px-5 py-3.5 rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-amber-500/40 transition-all overflow-hidden">
+                        class="group relative hidden td-x rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-amber-500/40 transition-all overflow-hidden">
                         <span class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
                         <span class="relative"><i class="fas fa-crown mr-2"></i>Pro 플랜 업그레이드</span>
                       </a>
@@ -1788,7 +1788,7 @@ export const ResultPage: FC<{
                       <button
                         id="gsc-run-sync-btn"
                         type="button"
-                        class="px-5 py-3.5 rounded-xl bg-gradient-to-br from-emerald-400 to-accent text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-emerald-500/40 transition-all">
+                        class="td-x rounded-xl bg-gradient-to-br from-emerald-400 to-accent text-slate-900 text-sm font-extrabold whitespace-nowrap shadow-lg shadow-emerald-500/40 transition-all">
                         <i class="fas fa-bolt mr-1.5"></i>동기화 실행
                       </button>
                     </div>
@@ -1821,7 +1821,7 @@ export const ResultPage: FC<{
                     </div>
 
                     <div class="rounded-2xl bg-slate-950/40 border border-white/10 overflow-hidden backdrop-blur-sm">
-                      <div class="px-5 py-3.5 border-b border-white/10 flex items-center justify-between bg-amber-500/[0.04]">
+                      <div class="td-x border-b border-white/10 flex items-center justify-between bg-amber-500/[0.04]">
                         <div class="text-sm font-extrabold text-white">
                           <i class="fas fa-crosshairs text-amber-300 mr-2"></i>
                           GSC가 알려준 "노출됐는데 못 잡은" TOP 키워드
