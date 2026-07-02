@@ -207,7 +207,7 @@ export const ResultPage: FC<{
       title={`${scan.domain} 구글 SEO 진단 · Patient Rank`}
       description={`${scan.domain}의 구글 한국 랭크 키워드 ${scan.keyword_count}개, TOP 3 ${scan.top3_count}개, TOP 10 ${scan.top10_count}개`}
     >
-      <NavBar loggedIn />
+      <NavBar loggedIn={!!viewer} />
       <main class="hero-dark relative overflow-hidden min-h-screen">
         {/* 별 그리드 + 오로라 글로우 */}
         <div class="absolute inset-0 stars-grid pointer-events-none"></div>
@@ -1281,6 +1281,7 @@ export const ResultPage: FC<{
                     id="longtail-btn"
                     type="button"
                     data-scan-id={scan.scanId}
+                    data-authed={viewer ? '1' : '0'}
                     class="group relative px-6 py-3.5 rounded-xl bg-gradient-to-br from-accent via-emerald-500 to-emerald-700 text-white text-sm font-extrabold whitespace-nowrap shadow-glow-accent hover:shadow-glow-accent-lg transition-all overflow-hidden">
                     <i class="fas fa-play mr-2"></i>롱테일 스캔 시작
                   </button>
@@ -1561,6 +1562,7 @@ export const ResultPage: FC<{
                 id="gsc-card"
                 class="mt-8 relative overflow-hidden rounded-3xl border-2 border-amber-400/30 p-7 md:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950/40"
                 data-scan-id={scan.scanId}
+                data-authed={viewer ? '1' : '0'}
                 style="box-shadow: 0 30px 80px -20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.08);">
 
                 {/* 다층 글로우 + 별 그리드 */}

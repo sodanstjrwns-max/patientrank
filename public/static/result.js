@@ -201,9 +201,10 @@
     const statusEl = document.getElementById('longtail-status');
     const scanId = btn.getAttribute('data-scan-id');
     if (!scanId) return;
+    const authed = btn.getAttribute('data-authed') === '1';
 
-    // 페이지 로드 시 기존 진행 중 job 있으면 즉시 복구
-    (async () => {
+    // 페이지 로드 시 기존 진행 중 job 있으면 즉시 복구 (비로그인은 401만 나므로 스킵)
+    if (authed) (async () => {
       try {
         const res = await fetch('/api/scan/' + scanId + '/longtail/status');
         if (!res.ok) return;
@@ -306,6 +307,7 @@
     if (!card) return;
     const scanId = card.getAttribute('data-scan-id');
     if (!scanId) return;
+    const gscAuthed = card.getAttribute('data-authed') === '1';
 
     const connectBtn = document.getElementById('gsc-connect-btn');
     const syncBtn = document.getElementById('gsc-sync-btn');
@@ -321,10 +323,15 @@
     function hide(el) { if (el) el.classList.add('hidden'); }
 
     async function checkStatus() {
+      // 비로그인은 API 호출 없이 즉시 연결 버튼만 노출 (콘솔 401 노이즈 제거)
+      if (!gscAuthed) {
+        show(connectBtn);
+        return;
+      }
       try {
         const res = await fetch('/api/gsc/status');
         if (res.status === 401) {
-          // 비로그인 → 연결 버튼만 보여주고 클릭 시 로그인 유도
+          // 세션 만료 등 → 연결 버튼만 보여주고 클릭 시 로그인 유도
           show(connectBtn);
           return;
         }

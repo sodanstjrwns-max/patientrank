@@ -299,6 +299,28 @@ app.get('/blog', (c) =>
 // Terms / Privacy (Google OAuth Verification 통과를 위한 풀버전)
 app.get('/terms', (c) => c.html(<TermsPage />))
 app.get('/privacy', (c) => c.html(<PrivacyPolicyPage />))
+// 푸터 '환불정책' 링크 — 이용약관 제11조(환불)로 영구 리다이렉트
+app.get('/refund', (c) => c.redirect('/terms#refund', 301))
+
+// SEO 기본 파일 — 진단 SaaS가 자기 SEO를 챙기는 건 기본
+app.get('/robots.txt', (c) =>
+  c.text(
+    ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /dashboard', 'Disallow: /api/', '', 'Sitemap: https://patientrank.kr/sitemap.xml'].join('\n'),
+    200,
+    { 'Content-Type': 'text/plain; charset=utf-8' },
+  ),
+)
+app.get('/sitemap.xml', (c) => {
+  const pages = ['/', '/pricing', '/beta', '/pf-alumni', '/blog', '/terms', '/privacy']
+  const urls = pages
+    .map((p) => `  <url><loc>https://patientrank.kr${p}</loc><changefreq>weekly</changefreq></url>`)
+    .join('\n')
+  return c.body(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`,
+    200,
+    { 'Content-Type': 'application/xml; charset=utf-8' },
+  )
+})
 
 // ===================================================================
 // Day 3-C: 베타 신청 페이지 + API

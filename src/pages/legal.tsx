@@ -413,7 +413,7 @@ export const TermsPage: FC = () => (
         <p>① 결제는 토스페이먼츠를 통해 신용카드, 계좌이체 등으로 처리됩니다.</p>
         <p>② 회사는 카드 정보를 직접 보관하지 않으며, 토스페이먼츠 Customer Key만 저장합니다.</p>
 
-        <h3 class="text-lg font-semibold text-slate-900 mt-6 mb-3">제11조 (환불 정책)</h3>
+        <h3 id="refund" class="text-lg font-semibold text-slate-900 mt-6 mb-3 scroll-mt-24">제11조 (환불 정책)</h3>
         <p>① 결제일로부터 7일 이내, 서비스를 단 한 번도 사용하지 않은 경우 전액 환불됩니다.</p>
         <p>② 서비스를 1회 이상 사용한 경우 잔여 기간에 대해 일할 계산하여 환불할 수 있습니다.</p>
         <p>③ 회사의 귀책 사유로 서비스를 이용할 수 없는 경우 전액 환불됩니다.</p>
