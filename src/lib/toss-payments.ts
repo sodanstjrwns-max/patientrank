@@ -256,9 +256,10 @@ export async function updatePaymentFailure(
   failureCode: string,
   failureMessage: string,
 ): Promise<void> {
+  // 내부 표준 status: 'failed' (마이그레이션 0009에서 기존 'ABORTED'도 'failed'로 정규화됨)
   await env.DB.prepare(
     `UPDATE payments SET
-      status = 'ABORTED',
+      status = 'failed',
       failure_code = ?,
       failure_message = ?
      WHERE toss_order_id = ?`,

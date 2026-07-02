@@ -383,10 +383,26 @@ api.post('/leads', async (c) => {
   const scan = await c.env.DB.prepare(`SELECT id FROM scans WHERE id = ?`).bind(scanId).first<any>()
   if (!scan) return c.json({ error: 'NOT_FOUND' }, 404)
 
-  await c.env.DB.prepare(
-    `INSERT INTO leads (scan_id, email, clinic_name, specialty, doctor_name, kakao_opt_in)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).bind(scanId, email, clinicName, specialty, doctorName, kakaoOptIn).run()
+  // 중복 방지: 같은 스캔+이메일 조합이면 INSERT 대신 기존 행 갱신 (재발송은 허용)
+  const existing = await c.env.DB.prepare(
+    `SELECT id FROM leads WHERE scan_id = ? AND email = ? LIMIT 1`
+  ).bind(scanId, email).first<any>()
+
+  if (existing) {
+    await c.env.DB.prepare(
+      `UPDATE leads SET
+         clinic_name = COALESCE(?, clinic_name),
+         specialty = COALESCE(?, specialty),
+         doctor_name = COALESCE(?, doctor_name),
+         kakao_opt_in = MAX(kakao_opt_in, ?)
+       WHERE id = ?`
+    ).bind(clinicName, specialty, doctorName, kakaoOptIn, existing.id).run()
+  } else {
+    await c.env.DB.prepare(
+      `INSERT INTO leads (scan_id, email, clinic_name, specialty, doctor_name, kakao_opt_in)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(scanId, email, clinicName, specialty, doctorName, kakaoOptIn).run()
+  }
 
   // Resend 이메일 발송 (키가 있을 때만)
   if (c.env.RESEND_API_KEY) {
