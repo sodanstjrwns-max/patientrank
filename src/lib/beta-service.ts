@@ -15,6 +15,16 @@ export function isValidPatientFunnelCode(code: string | null | undefined): boole
   return PF_CODE_REGEX.test(code.trim())
 }
 
+/**
+ * 베타 초대 쿠폰 + 초대 URL 생성 (개별 초대 / 일괄 초대 공용)
+ * PF 수료생 → 평생 50% (PATIENTFUNNEL50) / 일반 → 베타 100% (BETA100)
+ */
+export function buildBetaInvite(env: Bindings, isPfAlumni: boolean | number): { couponCode: string; inviteUrl: string } {
+  const couponCode = isPfAlumni ? 'PATIENTFUNNEL50' : 'BETA100'
+  const appUrl = ((env as any).APP_URL || 'https://patientrank.kr').replace(/\/$/, '')
+  return { couponCode, inviteUrl: `${appUrl}/checkout?plan=pro&coupon=${couponCode}` }
+}
+
 export interface BetaSignupInput {
   email: string
   name: string

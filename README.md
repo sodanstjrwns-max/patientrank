@@ -151,8 +151,17 @@ npx wrangler deploy               # patientrank-cron Worker 배포
 npx wrangler secret put CRON_SECRET  # Pages CRON_SECRET과 동일하게
 ```
 
+## Code Structure Notes (2026-07-02 리팩터링)
+- **`src/routes/payments.tsx`** — 결제 전체 (checkout / coupon / init / success·fail 콜백 / 토스 웹훅). index.tsx에서 분리
+- **`src/lib/pricing.ts`** — 플랜+쿠폰 가격 계산 단일 소스 (`resolvePlanPrice`, `isPaidPlan`). 3곳 중복 제거
+- **결제 성공 콜백 멱등성 가드** — 이미 paid된 주문은 재청구 없이 성공 화면만 (새로고침 이중 청구 방지)
+- **`buildBetaInvite`** (beta-service) / **`getLatestUserDomain`** (competitor-service) — 중복 로직 유틸화
+- **베타 신청 입력 검증 강화** — 이메일 형식/필드 길이 제한, 공용 hashIp 사용
+- **DataForSEO domain_intersection 필드 경로 수정** — 40501 에러 해소 (경쟁사 키워드 갭 복구)
+- 테스트: `tests/` 39건 (coupon 9 / prescription 10 / pricing 7 / utils 13)
+
 ## Deployment
 - **Platform**: Cloudflare Pages + Workers (사용자 소유 계정)
 - **Status**: ✅ Active (https://patientrank.kr)
 - **Deploy**: `npm run deploy:prod` (+ 원격 마이그레이션 `npm run db:migrate:prod`)
-- **Last Updated**: 2026-07-01
+- **Last Updated**: 2026-07-02

@@ -15,9 +15,10 @@ import { Layout, NavBar, Footer } from './pages/layout'
 import { PrivacyPolicyPage, TermsPage } from './pages/legal'
 import { BetaPage } from './pages/beta'
 import { AdminBetaPage } from './pages/admin-beta'
-import { CheckoutPage, PaymentSuccessPage, PaymentFailPage } from './pages/checkout'
+import payments from './routes/payments'
 import { getScanById } from './lib/scan-service'
 import { getUserFromCookie } from './lib/auth'
+import { hashIp, getClientIp } from './lib/utils'
 import { getWeeklyDelta } from './lib/snapshot-service'
 import { getCachedActionGuide, generateActionGuide, saveActionGuide } from './lib/ai-action-guide'
 import { generatePrescriptions } from './lib/content-prescription'
@@ -28,30 +29,36 @@ import {
   listBetaSignups,
   getBetaStats,
   markBetaInvited,
+  buildBetaInvite,
 } from './lib/beta-service'
 import { sendBetaInvite } from './lib/kakao-notify'
-import {
-  validateCoupon,
-  consumeCoupon,
-  generateOrderId,
-  savePayment,
-  chargeBillingKey,
-  issueBillingKey,
-  updatePaymentSuccess,
-  updatePaymentFailure,
-  upsertSubscription,
-} from './lib/toss-payments'
 import {
   addCompetitor,
   removeCompetitor,
   listCompetitors,
   getCompetitorComparisons,
+  getLatestUserDomain,
 } from './lib/competitor-service'
 import { CompetitorsPage } from './pages/competitors'
 import { PfAlumniPage } from './pages/pf-alumni'
-import { PLAN_PRICES, type PlanName } from './lib/types'
 
 const app = new Hono<{ Bindings: Bindings }>()
+
+// 어드민 전용 페이지 403 화면 (공통)
+const AdminForbidden = () => (
+  <Layout title="접근 권한 없음 · Patient Rank">
+    <NavBar loggedIn />
+    <main class="max-w-2xl mx-auto px-5 py-20 text-center">
+      <div class="text-6xl mb-4">🛡️</div>
+      <h1 class="text-2xl font-bold text-slate-900">어드민 권한이 필요합니다</h1>
+      <p class="mt-2 text-slate-600">이 페이지에 접근할 수 있는 권한이 없습니다.</p>
+      <a href="/dashboard" class="mt-6 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">
+        내 대시보드로
+      </a>
+    </main>
+    <Footer />
+  </Layout>
+)
 
 app.use('*', logger())
 app.use('/api/*', cors())
@@ -60,6 +67,9 @@ app.use('/api/*', cors())
 app.route('/api', api)
 app.route('/api/auth', auth)
 app.route('/api/admin', admin)
+
+// 결제 (checkout / payment callbacks / coupon / toss webhook) — routes/payments.tsx
+app.route('/', payments)
 
 // OAuth 콜백은 쿠키를 바로 세팅해야 하므로 페이지 경로로도 제공
 app.route('/auth', auth)
@@ -177,23 +187,7 @@ app.get('/dashboard', async (c) => {
 app.get('/admin', async (c) => {
   const user = await getUserFromCookie(c)
   if (!user) return c.redirect('/login')
-  if (user.is_admin !== 1) {
-    return c.html(
-      <Layout title="접근 권한 없음 · Patient Rank">
-        <NavBar loggedIn />
-        <main class="max-w-2xl mx-auto px-5 py-20 text-center">
-          <div class="text-6xl mb-4">🛡️</div>
-          <h1 class="text-2xl font-bold text-slate-900">어드민 권한이 필요합니다</h1>
-          <p class="mt-2 text-slate-600">이 페이지에 접근할 수 있는 권한이 없습니다.</p>
-          <a href="/dashboard" class="mt-6 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">
-            내 대시보드로
-          </a>
-        </main>
-        <Footer />
-      </Layout>,
-      403,
-    )
-  }
+  if (user.is_admin !== 1) return c.html(<AdminForbidden />, 403)
 
   const db = c.env.DB
   const [usersRow, scansRow, leadsRow, revenueRow, todayRow, weekRow, paidRow] = await Promise.all([
@@ -317,25 +311,34 @@ app.get('/beta', (c) => {
 app.post('/api/beta/signup', async (c) => {
   try {
     const body = await c.req.json<any>()
-    if (!body.email || !body.name) {
+    const email = String(body.email || '').trim().toLowerCase()
+    const name = String(body.name || '').trim()
+
+    // 입력 검증 (이메일 형식 + 길이 제한 — 스팸/DB 오염 방지)
+    if (!email || !name) {
       return c.json({ success: false, reason: '이름과 이메일은 필수입니다.' }, 400)
     }
-    // IP 해시
-    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || ''
-    let ipHash = ''
-    if (ip) {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip))
-      ipHash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
+      return c.json({ success: false, reason: '올바른 이메일 형식이 아닙니다.' }, 400)
     }
+    if (name.length > 50) {
+      return c.json({ success: false, reason: '이름이 너무 깁니다.' }, 400)
+    }
+
+    // IP 해시 (공용 유틸 사용 — 자체 구현 중복 제거)
+    const ip = getClientIp(c.req.raw)
+    const ipHash = ip ? (await hashIp(ip)).slice(0, 32) : ''
+
+    const clip = (v: any, max: number) => (v ? String(v).slice(0, max) : undefined)
     const result = await submitBetaSignup(c.env, {
-      email: body.email,
-      name: body.name,
-      clinic_name: body.clinic_name,
-      clinic_url: body.clinic_url,
-      phone: body.phone,
-      patient_funnel_code: body.patient_funnel_code,
+      email,
+      name,
+      clinic_name: clip(body.clinic_name, 100),
+      clinic_url: clip(body.clinic_url, 200),
+      phone: clip(body.phone, 20),
+      patient_funnel_code: clip(body.patient_funnel_code, 50),
       source: 'beta_page',
-      message: body.message,
+      message: clip(body.message, 1000),
       user_agent: c.req.header('user-agent') || undefined,
       ip_hash: ipHash || undefined,
     })
@@ -353,20 +356,7 @@ app.post('/api/beta/signup', async (c) => {
 app.get('/admin/beta', async (c) => {
   const user = await getUserFromCookie(c)
   if (!user) return c.redirect('/login')
-  if (user.is_admin !== 1) {
-    return c.html(
-      <Layout title="접근 권한 없음">
-        <NavBar loggedIn />
-        <main class="max-w-2xl mx-auto px-5 py-20 text-center">
-          <div class="text-6xl mb-4">🛡️</div>
-          <h1 class="text-2xl font-bold text-slate-900">어드민 권한이 필요합니다</h1>
-          <a href="/dashboard" class="mt-6 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold">
-            내 대시보드로
-          </a>
-        </main>
-        <Footer />
-      </Layout>, 403)
-  }
+  if (user.is_admin !== 1) return c.html(<AdminForbidden />, 403)
 
   const [signups, stats] = await Promise.all([
     listBetaSignups(c.env, undefined, 200),
@@ -393,8 +383,7 @@ app.post('/api/admin/beta/invite', async (c) => {
     }
 
     // 페이션트 퍼널 수료생이면 평생 50% 쿠폰, 아니면 베타 한정 100% 쿠폰
-    const couponCode = signup.is_pf_alumni ? 'PATIENTFUNNEL50' : 'BETA100'
-    const inviteUrl = `${(c.env as any).APP_URL || 'https://patientrank.pages.dev'}/checkout?plan=pro&coupon=${couponCode}`
+    const { couponCode, inviteUrl } = buildBetaInvite(c.env, signup.is_pf_alumni)
 
     // 카카오 알림톡 발송 (전화번호 있을 때만)
     let kakaoSent = false
@@ -438,8 +427,7 @@ app.post('/api/admin/beta/invite-all', async (c) => {
 
     for (const s of pending) {
       try {
-        const couponCode = s.is_pf_alumni ? 'PATIENTFUNNEL50' : 'BETA100'
-        const inviteUrl = `${(c.env as any).APP_URL || 'https://patientrank.pages.dev'}/checkout?plan=pro&coupon=${couponCode}`
+        const { couponCode, inviteUrl } = buildBetaInvite(c.env, s.is_pf_alumni)
 
         if (s.phone) {
           await sendBetaInvite(c.env, s.phone, {
@@ -470,18 +458,11 @@ app.get('/dashboard/competitors', async (c) => {
   const user = await getUserFromCookie(c)
   if (!user) return c.redirect('/login?next=/dashboard/competitors')
 
-  const competitors = await listCompetitors(c.env, user.id)
-
-  // 가장 최근 스캔의 도메인을 "내 도메인"으로 사용
-  const latestScan = await c.env.DB.prepare(
-    `SELECT d.domain
-       FROM scans s LEFT JOIN domains d ON d.id = s.domain_id
-       WHERE s.user_id = ? AND d.domain IS NOT NULL
-       ORDER BY s.created_at DESC LIMIT 1`,
-  )
-    .bind(user.id)
-    .first<{ domain: string }>()
-  const myDomain = latestScan?.domain || null
+  // 경쟁사 목록 + 내 도메인(최근 스캔 기준) 병렬 조회
+  const [competitors, myDomain] = await Promise.all([
+    listCompetitors(c.env, user.id),
+    getLatestUserDomain(c.env, user.id),
+  ])
 
   return c.html(
     <CompetitorsPage
@@ -519,19 +500,12 @@ app.post('/api/competitors/add', async (c) => {
   }
 
   // 내 도메인은 최근 스캔 기준
-  const latestScan = await c.env.DB.prepare(
-    `SELECT d.domain
-       FROM scans s LEFT JOIN domains d ON d.id = s.domain_id
-       WHERE s.user_id = ? AND d.domain IS NOT NULL
-       ORDER BY s.created_at DESC LIMIT 1`,
-  )
-    .bind(user.id)
-    .first<{ domain: string }>()
-  if (!latestScan?.domain) {
+  const myDomain = await getLatestUserDomain(c.env, user.id)
+  if (!myDomain) {
     return c.json({ success: false, error: '먼저 우리 병원 도메인을 진단해 주세요' }, 400)
   }
 
-  const result = await addCompetitor(c.env, user.id, latestScan.domain, competitorDomain, alias)
+  const result = await addCompetitor(c.env, user.id, myDomain, competitorDomain, alias)
   return c.json(result, result.success ? 200 : 400)
 })
 
@@ -559,295 +533,6 @@ app.get('/api/competitors/comparisons', async (c) => {
 // Day 8: 페이션트 퍼널 수료생 LP
 // ===================================================================
 app.get('/pf-alumni', (c) => c.html(<PfAlumniPage />))
-
-// ===================================================================
-// Day 3-B: 결제 페이지 + API (토스페이먼츠)
-// ===================================================================
-
-// 결제 페이지 (로그인 필수)
-app.get('/checkout', async (c) => {
-  const user = await getUserFromCookie(c)
-  if (!user) return c.redirect('/login?next=/checkout')
-
-  const planRaw = (c.req.query('plan') || 'pro').toLowerCase() as PlanName
-  if (!['basic', 'pro', 'agency'].includes(planRaw)) {
-    return c.redirect('/pricing')
-  }
-  const basePrice = PLAN_PRICES[planRaw]
-  let finalPrice: number = basePrice
-  let discountRate = 0
-  const couponCode = (c.req.query('coupon') || '').toUpperCase()
-
-  if (couponCode) {
-    const v = await validateCoupon(c.env, couponCode, basePrice)
-    if (v.valid) {
-      finalPrice = v.final_price
-      discountRate = v.discount_rate
-    }
-  }
-
-  // TOSS_CLIENT_KEY 미설정 시 결제 진입 차단 (테스트 키 폴백은 실결제 사고 위험)
-  const tossClientKey = (c.env as any).TOSS_CLIENT_KEY
-  if (!tossClientKey) {
-    return c.html(
-      <Layout title="결제 준비 중 · Patient Rank">
-        <NavBar loggedIn />
-        <main class="max-w-xl mx-auto px-5 py-24 text-center">
-          <div class="text-6xl mb-4">🛠️</div>
-          <h1 class="text-2xl font-bold text-slate-900">결제 시스템 준비 중입니다</h1>
-          <p class="mt-3 text-slate-600">잠시 후 다시 시도해주세요. 급하신 경우 카카오 채널로 문의 부탁드립니다.</p>
-          <a href="/pricing" class="mt-8 inline-block px-6 py-3 rounded-lg bg-brand text-white font-semibold hover:bg-brand-600">가격 안내로</a>
-        </main>
-        <Footer />
-      </Layout>,
-      503,
-    )
-  }
-
-  return c.html(
-    <CheckoutPage
-      plan={planRaw as 'basic' | 'pro' | 'agency'}
-      basePrice={basePrice}
-      finalPrice={finalPrice}
-      discountRate={discountRate}
-      couponCode={couponCode || undefined}
-      user={{ id: user.id, email: user.email, name: (user as any).name }}
-      tossClientKey={tossClientKey}
-    />
-  )
-})
-
-// 쿠폰 검증 API
-app.post('/api/coupon/validate', async (c) => {
-  try {
-    const { code, plan } = await c.req.json<{ code: string; plan: PlanName }>()
-    if (!code || !plan || !(plan in PLAN_PRICES)) {
-      return c.json({ valid: false, reason: '잘못된 요청입니다.' }, 400)
-    }
-    const basePrice = PLAN_PRICES[plan]
-    const result = await validateCoupon(c.env, code, basePrice)
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ valid: false, reason: e.message }, 500)
-  }
-})
-
-// 주문 초기화 API (결제창 호출 직전)
-app.post('/api/payment/init', async (c) => {
-  const user = await getUserFromCookie(c)
-  if (!user) return c.json({ error: '로그인이 필요합니다.' }, 401)
-  try {
-    const { plan, coupon } = await c.req.json<{ plan: PlanName; coupon?: string }>()
-    if (!plan || !(plan in PLAN_PRICES)) {
-      return c.json({ error: '잘못된 플랜' }, 400)
-    }
-    const basePrice = PLAN_PRICES[plan]
-    let finalPrice: number = basePrice
-    if (coupon) {
-      const v = await validateCoupon(c.env, coupon, basePrice)
-      if (v.valid) finalPrice = v.final_price
-    }
-
-    const orderId = generateOrderId()
-    await savePayment(c.env, user.id, null, orderId, finalPrice, 'first_payment')
-    return c.json({ order_id: orderId, amount: finalPrice })
-  } catch (e: any) {
-    return c.json({ error: e.message || '주문 생성 실패' }, 500)
-  }
-})
-
-// 결제 성공 콜백 (토스 successUrl 리다이렉트 도착)
-app.get('/payment/success', async (c) => {
-  const user = await getUserFromCookie(c)
-  if (!user) return c.redirect('/login')
-
-  const orderId = c.req.query('order_id') || ''
-  const authKey = c.req.query('authKey') || ''
-  const customerKey = c.req.query('customerKey') || `customer-${user.id}`
-  const planRaw = (c.req.query('plan') || 'pro').toLowerCase() as PlanName
-  const couponCode = (c.req.query('coupon') || '').toUpperCase()
-
-  if (!orderId || !authKey) {
-    return c.html(<PaymentFailPage code="MISSING_PARAMS" message="주문 정보가 누락되었습니다." />)
-  }
-
-  try {
-    // 1) 빌링키 발급 (자동결제용 카드 등록)
-    const billing = await issueBillingKey(c.env, { customerKey, authKey })
-
-    // 2) 가격 재계산 (보안: 클라이언트 신뢰 금지)
-    const basePrice = PLAN_PRICES[planRaw]
-    let finalPrice: number = basePrice
-    let discountRate = 0
-    if (couponCode) {
-      const v = await validateCoupon(c.env, couponCode, basePrice)
-      if (v.valid) {
-        finalPrice = v.final_price
-        discountRate = v.discount_rate
-      }
-    }
-
-    // 3) 첫 결제 즉시 청구 (0원 쿠폰이면 청구 생략 — 카드 등록만)
-    //    이전 버그: 빌링키 발급 후 실청구 없이 구독 활성화 → 첫 달 무료가 돼버림
-    let firstCharge: Awaited<ReturnType<typeof chargeBillingKey>> | null = null
-    if (finalPrice > 0) {
-      firstCharge = await chargeBillingKey(c.env, {
-        billingKey: billing.billingKey,
-        customerKey,
-        amount: finalPrice,
-        orderId,
-        orderName: `Patient Rank ${planRaw.toUpperCase()} 월 구독`,
-        customerEmail: user.email,
-        customerName: (user as any).name || undefined,
-      })
-    }
-
-    // 4) 구독 활성화
-    const subId = await upsertSubscription(
-      c.env,
-      user.id,
-      planRaw,
-      basePrice,
-      discountRate,
-      finalPrice,
-      billing.billingKey,
-      customerKey,
-      billing.card.company,
-      billing.card.number,
-    )
-
-    // 5) 결제 정보 업데이트 (status는 통일된 'paid' 사용)
-    if (firstCharge) {
-      await c.env.DB.prepare(
-        `UPDATE payments SET subscription_id = ?, status = 'paid',
-          toss_payment_key = ?, method = 'CARD',
-          card_company = ?, card_number_masked = ?,
-          receipt_url = ?, paid_at = CURRENT_TIMESTAMP
-         WHERE toss_order_id = ?`
-      ).bind(
-        subId,
-        firstCharge.paymentKey || null,
-        billing.card.company,
-        billing.card.number,
-        firstCharge.receipt?.url || null,
-        orderId,
-      ).run()
-    } else {
-      // 100% 쿠폰: 청구 없이 결제 레코드는 0원 paid 처리
-      await c.env.DB.prepare(
-        `UPDATE payments SET subscription_id = ?, status = 'paid',
-          method = 'CARD', card_company = ?, card_number_masked = ?, paid_at = CURRENT_TIMESTAMP
-         WHERE toss_order_id = ?`
-      ).bind(subId, billing.card.company, billing.card.number, orderId).run()
-    }
-
-    // 6) 쿠폰 사용 카운트 증가 (결제 성공 시에만)
-    if (couponCode && discountRate > 0) {
-      try {
-        await consumeCoupon(c.env, couponCode)
-      } catch (e) {
-        console.error('coupon consume failed:', e)
-      }
-    }
-
-    // 7) 유저 플랜 업그레이드
-    await c.env.DB.prepare(`UPDATE users SET plan = ? WHERE id = ?`)
-      .bind(planRaw, user.id).run()
-
-    return c.html(<PaymentSuccessPage orderId={orderId} plan={planRaw} amount={finalPrice} />)
-  } catch (e: any) {
-    await updatePaymentFailure(c.env, orderId, 'BILLING_FAIL', e.message || 'unknown')
-    return c.html(<PaymentFailPage code="BILLING_FAIL" message={e.message} />)
-  }
-})
-
-// 결제 실패 콜백
-app.get('/payment/fail', (c) => {
-  const code = c.req.query('code') || undefined
-  const message = c.req.query('message') || undefined
-  return c.html(<PaymentFailPage code={code} message={message} />)
-})
-
-// ===================================================================
-// 토스페이먼츠 웹훅 — 카드사/토스 측 상태 변경(취소·환불·실패) DB 동기화
-// 등록: 토스 개발자센터 > 웹훅 > https://patientrank.kr/api/webhook/toss
-// 검증: 이벤트를 신뢰하지 않고 paymentKey로 토스 API 재조회 (위조 방지)
-// ===================================================================
-app.post('/api/webhook/toss', async (c) => {
-  let body: any
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ ok: false, error: 'INVALID_JSON' }, 400)
-  }
-
-  // 토스 웹훅 페이로드: { eventType, createdAt, data: { paymentKey, orderId, status, ... } }
-  const eventType = String(body?.eventType || '')
-  const data = body?.data || {}
-  const paymentKey = String(data?.paymentKey || '')
-  const orderId = String(data?.orderId || '')
-
-  console.log(`[toss-webhook] ${eventType} order=${orderId}`)
-  if (!paymentKey && !orderId) return c.json({ ok: true, skipped: 'no identifiers' })
-
-  const secretKey = (c.env as any).TOSS_SECRET_KEY
-  if (!secretKey) return c.json({ ok: false, error: 'NOT_CONFIGURED' }, 503)
-
-  try {
-    // 위조 방지: 웹훅 내용을 믿지 않고 토스 API에서 결제 상태 재조회
-    const lookupUrl = paymentKey
-      ? `https://api.tosspayments.com/v1/payments/${paymentKey}`
-      : `https://api.tosspayments.com/v1/payments/orders/${orderId}`
-    const res = await fetch(lookupUrl, {
-      headers: { Authorization: 'Basic ' + btoa(secretKey + ':') },
-    })
-    if (!res.ok) {
-      console.error(`[toss-webhook] lookup failed ${res.status}`)
-      return c.json({ ok: false, error: 'LOOKUP_FAILED' }, 502)
-    }
-    const payment: any = await res.json()
-    const tossStatus = String(payment?.status || '')
-    const verifiedOrderId = String(payment?.orderId || orderId)
-
-    // 상태 매핑 (내부 표준: paid / canceled / failed)
-    let internal: string | null = null
-    if (tossStatus === 'DONE') internal = 'paid'
-    else if (tossStatus === 'CANCELED' || tossStatus === 'PARTIAL_CANCELED') internal = 'canceled'
-    else if (['ABORTED', 'EXPIRED'].includes(tossStatus)) internal = 'failed'
-    if (!internal) return c.json({ ok: true, skipped: `unhandled status ${tossStatus}` })
-
-    if (internal === 'canceled') {
-      const cancels = Array.isArray(payment?.cancels) ? payment.cancels : []
-      const refundTotal = cancels.reduce((s: number, x: any) => s + Number(x?.cancelAmount || 0), 0)
-      const lastReason = cancels.length ? String(cancels[cancels.length - 1]?.cancelReason || '') : ''
-      await c.env.DB.prepare(
-        `UPDATE payments SET status = 'canceled', refunded_at = CURRENT_TIMESTAMP,
-           refund_amount_krw = ?, refund_reason = ?, raw_response = ?
-         WHERE toss_order_id = ?`,
-      ).bind(refundTotal, lastReason.slice(0, 200), JSON.stringify(payment).slice(0, 8000), verifiedOrderId).run()
-
-      // 전액 취소면 해당 구독 past_due 처리 (다음 빌링 크론이 재청구/만료 판단)
-      const payRow = await c.env.DB.prepare(
-        `SELECT user_id, subscription_id, amount_krw FROM payments WHERE toss_order_id = ?`,
-      ).bind(verifiedOrderId).first<any>()
-      if (payRow?.subscription_id && refundTotal >= Number(payRow.amount_krw || 0)) {
-        await c.env.DB.prepare(
-          `UPDATE subscriptions SET status = 'past_due', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        ).bind(payRow.subscription_id).run()
-        console.log(`[toss-webhook] subscription ${payRow.subscription_id} → past_due (full refund)`)
-      }
-    } else {
-      await c.env.DB.prepare(
-        `UPDATE payments SET status = ?, raw_response = ? WHERE toss_order_id = ?`,
-      ).bind(internal, JSON.stringify(payment).slice(0, 8000), verifiedOrderId).run()
-    }
-
-    return c.json({ ok: true, order_id: verifiedOrderId, status: internal })
-  } catch (e: any) {
-    console.error('[toss-webhook] error:', e)
-    return c.json({ ok: false, error: e.message }, 500)
-  }
-})
 
 app.notFound((c) =>
   c.html(

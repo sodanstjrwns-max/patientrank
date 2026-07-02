@@ -17,6 +17,20 @@ export function normalizeDomain(input: string): string {
 }
 
 /**
+ * 유저의 가장 최근 스캔 도메인 조회 ("내 도메인" 기준값)
+ * competitors 페이지 / 경쟁사 추가 API 공용
+ */
+export async function getLatestUserDomain(env: Bindings, userId: number): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT d.domain
+       FROM scans s LEFT JOIN domains d ON d.id = s.domain_id
+       WHERE s.user_id = ? AND d.domain IS NOT NULL
+       ORDER BY s.created_at DESC LIMIT 1`,
+  ).bind(userId).first<{ domain: string }>()
+  return row?.domain || null
+}
+
+/**
  * 경쟁사 등록 (중복 방지)
  */
 export async function addCompetitor(
